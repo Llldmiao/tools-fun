@@ -4,16 +4,16 @@ export const siteContent = {
     description:
       "A log-driven personal site for strange, useful, and playful tools.",
     owner: "Lengmiao",
-    email: "hello@example.com",
+    email: "peilinhana@gmail.com",
     nav: [
       { href: "/", label: "Home" },
       { href: "/tools/", label: "Tools" },
       { href: "/about/", label: "About" }
     ],
     socialLinks: [
-      { label: "GitHub", href: "https://github.com/your-handle" },
-      { label: "X", href: "https://x.com/your-handle" },
-      { label: "Email", href: "mailto:hello@example.com" }
+      { label: "GitHub", href: "https://github.com/Llldmiao" },
+      { label: "Repo", href: "https://github.com/Llldmiao/tools-fun" },
+      { label: "Email", href: "mailto:peilinhana@gmail.com" }
     ]
   },
   statuses: [
@@ -156,10 +156,7 @@ export const siteContent = {
       description:
         "A tiny interface layer for giving readers a sense of position and direction on dense pages.",
       status: "usable",
-      links: [
-        { type: "repo", label: "Repo", href: "https://github.com/your-handle/ambient-anchor" },
-        { type: "notes", label: "Notes", href: "https://example.com/ambient-anchor-notes" }
-      ]
+      links: []
     },
     {
       id: "gentle-batch",
@@ -170,10 +167,7 @@ export const siteContent = {
       description:
         "An automation helper that batches routine tasks while preserving a human review step.",
       status: "ongoing",
-      links: [
-        { type: "repo", label: "Repo", href: "https://github.com/your-handle/gentle-batch" },
-        { type: "demo", label: "Demo", href: "https://example.com/gentle-batch" }
-      ]
+      links: []
     },
     {
       id: "tab-signal",
@@ -184,7 +178,7 @@ export const siteContent = {
       description:
         "A small browser-side experiment for surfacing state and priority without noisy badges.",
       status: "experiment",
-      links: [{ type: "repo", label: "Repo", href: "https://github.com/your-handle/tab-signal" }]
+      links: []
     },
     {
       id: "odd-jobs",
@@ -195,10 +189,7 @@ export const siteContent = {
       description:
         "A cluster of tiny single-purpose tools for formatting, sorting, and rescuing awkward bits of data.",
       status: "usable",
-      links: [
-        { type: "repo", label: "Repo", href: "https://github.com/your-handle/odd-jobs" },
-        { type: "writeup", label: "Write-up", href: "https://example.com/odd-jobs" }
-      ]
+      links: []
     },
     {
       id: "whisper-timer",
@@ -209,7 +200,7 @@ export const siteContent = {
       description:
         "An experiment in making a deadline feel ambient rather than alarming.",
       status: "archived",
-      links: [{ type: "notes", label: "Notes", href: "https://example.com/whisper-timer" }]
+      links: []
     }
   ]
 };

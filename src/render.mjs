@@ -72,6 +72,17 @@ function renderStatusPill(statusMeta) {
 
 function renderToolCard(tool) {
   const detailId = `${tool.slug}-detail`;
+  const hasLinks = tool.links.length > 0;
+  const linkMarkup = hasLinks
+    ? `<ul class="tool-card__links" aria-label="${escapeHtml(tool.name)} links">
+        ${tool.links
+          .map(
+            (link) =>
+              `<li><a href="${link.href}" target="_blank" rel="noreferrer">${escapeHtml(link.label)}</a></li>`
+          )
+          .join("")}
+      </ul>`
+    : `<p class="tool-card__link-note">Public links are not attached yet. Ask me about this tool directly.</p>`;
   return `
     <article class="tool-card" id="${tool.slug}">
       <div class="tool-card__header">
@@ -84,14 +95,7 @@ function renderToolCard(tool) {
       <p class="tool-card__hook">${escapeHtml(tool.hook)}</p>
       <div class="tool-card__desktop">
         <p class="tool-card__description">${escapeHtml(tool.description)}</p>
-        <ul class="tool-card__links" aria-label="${escapeHtml(tool.name)} links">
-          ${tool.links
-            .map(
-              (link) =>
-                `<li><a href="${link.href}" target="_blank" rel="noreferrer">${escapeHtml(link.label)}</a></li>`
-            )
-            .join("")}
-        </ul>
+        ${linkMarkup}
       </div>
       <button
         class="tool-card__toggle"
@@ -103,14 +107,7 @@ function renderToolCard(tool) {
       </button>
       <div class="tool-card__mobile-detail" id="${detailId}" hidden>
         <p class="tool-card__description">${escapeHtml(tool.description)}</p>
-        <ul class="tool-card__links" aria-label="${escapeHtml(tool.name)} links">
-          ${tool.links
-            .map(
-              (link) =>
-                `<li><a href="${link.href}" target="_blank" rel="noreferrer">${escapeHtml(link.label)}</a></li>`
-            )
-            .join("")}
-        </ul>
+        ${linkMarkup}
       </div>
     </article>
   `;
