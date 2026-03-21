@@ -26,9 +26,12 @@ const [css, js] = await Promise.all([
   readFile(join(root, "src", "site.js"), "utf8")
 ]);
 
+const favicon = await readFile(join(root, "src", "favicon.svg"), "utf8");
+
 await Promise.all([
   writeFile(join(distDir, "site.css"), css, "utf8"),
-  writeFile(join(distDir, "site.js"), js, "utf8")
+  writeFile(join(distDir, "site.js"), js, "utf8"),
+  writeFile(join(distDir, "favicon.svg"), favicon, "utf8")
 ]);
 
 console.log(`Built ${Object.keys(pages).length} pages into ${distDir}`);

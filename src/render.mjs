@@ -36,6 +36,7 @@ function shell({ site, pathname, title, lead, body, footerNote }) {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="${escapeHtml(site.description)}" />
     <title>${escapeHtml(title)} · ${escapeHtml(site.title)}</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/site.css" />
     <script defer src="/site.js"></script>
   </head>
