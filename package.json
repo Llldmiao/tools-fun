@@ -12,6 +12,8 @@
     "dev:clipboard": "pnpm --parallel --filter @tools-fun/clipboard-api --filter @tools-fun/clipboard-web dev",
     "dev:site": "pnpm --filter @tools-fun/site serve",
     "build:site": "pnpm --filter @tools-fun/site build",
-    "test:site": "pnpm --filter @tools-fun/site test"
+    "test:site": "pnpm --filter @tools-fun/site test",
+    "deploy:clipboard": "bash scripts/deploy-clipboard.sh",
+    "deploy:clipboard:check": "bash scripts/check-clipboard-deploy.sh"
   }
 }

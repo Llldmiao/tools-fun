@@ -170,6 +170,7 @@ describe("clipboard app", () => {
   it("keeps the landing page indexable before entering a room", () => {
     render(<App />);
 
+    expect(document.title).toBe("共享粘贴板 - 多设备实时同步文本工具");
     expect(document.head.querySelector('meta[name="robots"]')?.getAttribute("content")).toBe("index,follow");
   });
 });

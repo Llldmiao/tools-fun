@@ -133,12 +133,12 @@ export function App() {
   useEffect(() => {
     const roomMode = activeRoom.length > 0;
 
-    document.title = roomMode ? `共享粘贴板 · 房间 ${activeRoom}` : "共享粘贴板";
+    document.title = roomMode ? `共享粘贴板 · 房间 ${activeRoom}` : "共享粘贴板 - 多设备实时同步文本工具";
     setHeadMeta(
       "description",
       roomMode
         ? "临时共享房间中的实时文本同步视图。"
-        : "一个轻量的共享粘贴板，让多台设备之间实时同步文本、链接和代码片段。"
+        : "共享粘贴板是一个轻量的多设备文本同步工具，让你在浏览器里快速共享链接、代码片段和临时内容。"
     );
     setHeadMeta("robots", roomMode ? "noindex,nofollow" : "index,follow");
   }, [activeRoom]);
