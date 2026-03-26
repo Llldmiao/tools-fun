@@ -1,0 +1,345 @@
+:root {
+  font-family: "IBM Plex Sans", "Noto Sans SC", sans-serif;
+  color: #16231b;
+  background:
+    radial-gradient(circle at top left, rgba(249, 218, 175, 0.75), transparent 24%),
+    radial-gradient(circle at top right, rgba(113, 160, 120, 0.18), transparent 28%),
+    linear-gradient(180deg, #f8f2e8 0%, #edf3ec 100%);
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.page-shell {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 40px 20px 72px;
+}
+
+.hero-card,
+.panel {
+  backdrop-filter: blur(18px);
+  background: rgba(255, 252, 247, 0.82);
+  border: 1px solid rgba(22, 35, 27, 0.12);
+  border-radius: 28px;
+  box-shadow: 0 18px 40px rgba(24, 37, 28, 0.08);
+}
+
+.hero-card {
+  padding: 32px;
+  margin-bottom: 24px;
+}
+
+.hero-card h1,
+.panel h2 {
+  font-family: "IBM Plex Serif", "Noto Serif SC", serif;
+  margin: 0;
+}
+
+.hero-card h1 {
+  font-size: clamp(2.2rem, 5vw, 4.2rem);
+  letter-spacing: -0.05em;
+}
+
+.lead,
+.hint,
+.empty-state,
+.error-text,
+.message-card pre {
+  white-space: pre-wrap;
+}
+
+.kicker,
+.section-label,
+.status-badge,
+.subtle-count,
+.message-meta {
+  font-family: "IBM Plex Mono", "JetBrains Mono", monospace;
+  letter-spacing: 0.04em;
+}
+
+.kicker,
+.section-label {
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  color: #4e6a58;
+  margin: 0 0 10px;
+}
+
+.lead {
+  max-width: 720px;
+  margin: 16px 0 0;
+  font-size: 1.05rem;
+  color: #33463a;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.panel {
+  padding: 24px;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+
+.stack {
+  display: grid;
+  gap: 12px;
+}
+
+input,
+textarea {
+  width: 100%;
+  border: 1px solid rgba(22, 35, 27, 0.18);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 14px 16px;
+  color: #16231b;
+}
+
+input:focus,
+textarea:focus,
+button:focus {
+  outline: 3px solid rgba(217, 130, 43, 0.28);
+  outline-offset: 2px;
+}
+
+textarea {
+  min-height: 196px;
+  resize: vertical;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+button {
+  border: 0;
+  border-radius: 999px;
+  padding: 12px 18px;
+  background: #1f4632;
+  color: #f8f2e8;
+  transition: transform 140ms ease, opacity 140ms ease, background 140ms ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
+}
+
+button:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.ghost-button {
+  background: rgba(31, 70, 50, 0.1);
+  color: #1f4632;
+}
+
+.status-badge,
+.subtle-count {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 0.76rem;
+}
+
+.status-badge {
+  background: rgba(31, 70, 50, 0.1);
+  color: #1f4632;
+}
+
+.status-badge--reconnecting,
+.status-badge--offline {
+  background: rgba(177, 95, 38, 0.12);
+  color: #8e4e1f;
+}
+
+.subtle-count {
+  color: #4e6a58;
+  background: rgba(78, 106, 88, 0.08);
+}
+
+.hint {
+  margin: 16px 0 0;
+  color: #4e6a58;
+}
+
+.error-text {
+  margin: 14px 0 0;
+  color: #b33c25;
+}
+
+.empty-state {
+  border: 1px dashed rgba(22, 35, 27, 0.15);
+  border-radius: 20px;
+  padding: 28px;
+  color: #4e6a58;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.message-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 14px;
+}
+
+.message-card {
+  padding: 18px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.74);
+  border: 1px solid rgba(22, 35, 27, 0.1);
+}
+
+.message-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  font-size: 0.8rem;
+  color: #4e6a58;
+}
+
+.message-meta__summary {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.message-copy-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+}
+
+.message-copy-button {
+  min-width: 42px;
+  min-height: 42px;
+  padding: 0;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.message-copy-tooltip,
+.message-copy-button.is-copied {
+  color: #215b34;
+}
+
+.message-copy-tooltip {
+  position: absolute;
+  right: calc(100% + 10px);
+  top: 50%;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(22, 35, 27, 0.9);
+  color: #f8f2e8;
+  font-size: 0.74rem;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-50%) translateX(6px) scale(0.96);
+  transition: opacity 120ms ease, transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.message-copy-wrap:hover .message-copy-tooltip,
+.message-copy-button:focus-visible + .message-copy-tooltip {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0) scale(1);
+}
+
+.message-copy-wrap:has(.message-copy-button.is-copied) .message-copy-tooltip {
+  opacity: 0;
+  transform: translateY(-50%) translateX(6px) scale(0.96);
+}
+
+.message-copy-button.is-copied {
+  background: rgba(50, 128, 77, 0.14);
+}
+
+.message-copy-feedback {
+  position: absolute;
+  right: calc(100% + 10px);
+  top: 50%;
+  font-size: 0.78rem;
+  color: #4e6a58;
+  opacity: 0;
+  transform: translateY(-50%) translateX(4px);
+  transition: opacity 160ms ease, transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  white-space: nowrap;
+}
+
+.message-copy-feedback.is-visible {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+}
+
+.message-card pre {
+  margin: 0;
+  font-family: "IBM Plex Mono", "JetBrains Mono", monospace;
+  font-size: 0.92rem;
+  overflow-x: auto;
+}
+
+@media (max-width: 840px) {
+  .page-shell {
+    padding: 24px 16px 56px;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .panel-header,
+  .message-meta {
+    flex-direction: column;
+  }
+
+  .message-meta__summary {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .message-copy-wrap {
+    align-self: flex-start;
+  }
+}

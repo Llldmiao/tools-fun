@@ -1,3 +1,5 @@
 node_modules/
 .DS_Store
 dist/
+apps/clipboard-api/data/
+apps/clipboard-web/dist/

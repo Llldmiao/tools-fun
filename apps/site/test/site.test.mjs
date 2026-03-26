@@ -60,5 +60,5 @@ test("home falls back to current questions when there are no active explorations
   const pages = renderSite(fallbackContent);
 
   assert.match(pages["/index.html"], /Current question/);
-  assert.match(pages["/index.html"], /What would a personal site look like/);
+  assert.match(pages["/index.html"], /如果个人网站更像实验笔记/);
 });
