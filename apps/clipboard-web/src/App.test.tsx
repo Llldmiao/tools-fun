@@ -71,6 +71,7 @@ describe("clipboard app", () => {
     });
 
     expect(await screen.findByText("该房间还没有内容。")).toBeInTheDocument();
+    expect(document.head.querySelector('meta[name="robots"]')?.getAttribute("content")).toBe("noindex,nofollow");
   });
 
   it("submits text and clears the draft", async () => {
@@ -164,5 +165,11 @@ describe("clipboard app", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "复制" })).toBeInTheDocument();
     });
+  });
+
+  it("keeps the landing page indexable before entering a room", () => {
+    render(<App />);
+
+    expect(document.head.querySelector('meta[name="robots"]')?.getAttribute("content")).toBe("index,follow");
   });
 });

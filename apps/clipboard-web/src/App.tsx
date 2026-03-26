@@ -11,6 +11,16 @@ import type { FormEvent } from "react";
 
 type ConnectionState = "idle" | "connecting" | "live" | "reconnecting" | "offline";
 
+function setHeadMeta(name: string, content: string) {
+  let meta = document.head.querySelector(`meta[name="${name}"]`);
+  if (!meta) {
+    meta = document.createElement("meta");
+    meta.setAttribute("name", name);
+    document.head.append(meta);
+  }
+  meta.setAttribute("content", content);
+}
+
 function formatTime(value: string) {
   return new Intl.DateTimeFormat("zh-CN", {
     hour: "2-digit",
@@ -119,6 +129,19 @@ export function App() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    const roomMode = activeRoom.length > 0;
+
+    document.title = roomMode ? `共享粘贴板 · 房间 ${activeRoom}` : "共享粘贴板";
+    setHeadMeta(
+      "description",
+      roomMode
+        ? "临时共享房间中的实时文本同步视图。"
+        : "一个轻量的共享粘贴板，让多台设备之间实时同步文本、链接和代码片段。"
+    );
+    setHeadMeta("robots", roomMode ? "noindex,nofollow" : "index,follow");
+  }, [activeRoom]);
 
   const connectionLabel = useMemo(() => {
     switch (connectionState) {
