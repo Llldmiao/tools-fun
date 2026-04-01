@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  CLIPBOARD_RETENTION_DAYS,
   MAX_CLIPBOARD_CONTENT_LENGTH,
   MAX_CLIPBOARD_ITEMS,
   createRoomId,
@@ -268,7 +269,10 @@ export function App() {
             </div>
           </form>
 
-          <p className="hint">房间码知道的人都能进入，因此更适合局域网协作、临时同步和个人设备之间传递内容。</p>
+          <p className="hint">
+            房间码知道的人都能进入，因此更适合局域网协作、临时同步和个人设备之间传递内容。消息会保留
+            {CLIPBOARD_RETENTION_DAYS} 天，过期后自动清理。
+          </p>
         </section>
 
         <section className="panel">

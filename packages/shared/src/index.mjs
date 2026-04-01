@@ -1,5 +1,6 @@
 export const MAX_CLIPBOARD_ITEMS = 20;
 export const MAX_CLIPBOARD_CONTENT_LENGTH = 5000;
+export const CLIPBOARD_RETENTION_DAYS = 7;
 export const ROOM_ID_PATTERN = /^[A-Z0-9]{6,12}$/;
 
 function randomChar() {

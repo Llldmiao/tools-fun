@@ -1,5 +1,6 @@
 export const MAX_CLIPBOARD_ITEMS: number;
 export const MAX_CLIPBOARD_CONTENT_LENGTH: number;
+export const CLIPBOARD_RETENTION_DAYS: number;
 export const ROOM_ID_PATTERN: RegExp;
 
 export type RoomId = string;

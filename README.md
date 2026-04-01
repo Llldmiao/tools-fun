@@ -6,6 +6,7 @@
 - API：Cloudflare Worker
 - 历史数据：Cloudflare D1
 - 实时同步：Cloudflare Durable Objects + SSE
+- 数据保留：最近 7 天，按小时自动清理过期消息
 
 ## 项目结构
 

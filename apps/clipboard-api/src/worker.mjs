@@ -1,6 +1,10 @@
-import { assertRoomId, parseClipboardPayload } from "../../../packages/shared/src/index.mjs";
+import {
+  CLIPBOARD_RETENTION_DAYS,
+  assertRoomId,
+  parseClipboardPayload
+} from "../../../packages/shared/src/index.mjs";
 import { RoomDurableObject } from "./room-do.mjs";
-import { insertClipboardItem, listClipboardItems } from "./store-d1.mjs";
+import { deleteExpiredClipboardItems, insertClipboardItem, listClipboardItems } from "./store-d1.mjs";
 
 function json(payload, init = {}) {
   const headers = new Headers(init.headers);
@@ -12,15 +16,6 @@ function json(payload, init = {}) {
     ...init,
     headers
   });
-}
-
-function notReady(pathname) {
-  return json(
-    {
-      error: `Cloudflare API route not migrated yet: ${pathname}`
-    },
-    { status: 501 }
-  );
 }
 
 function matchRoomRoute(pathname) {
@@ -40,7 +35,8 @@ export default {
       return json({
         ok: true,
         runtime: "cloudflare-worker",
-        mode: "bootstrap"
+        mode: "bootstrap",
+        retentionDays: CLIPBOARD_RETENTION_DAYS
       });
     }
 
@@ -94,6 +90,9 @@ export default {
     }
 
     return env.ASSETS.fetch(request);
+  },
+  async scheduled(_controller, env) {
+    await deleteExpiredClipboardItems(env.DB);
   }
 };
 
