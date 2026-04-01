@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App";
+import { LANGUAGE_STORAGE_KEY } from "./i18n";
 
 class MockEventSource {
   static instances: MockEventSource[] = [];
@@ -45,6 +46,8 @@ describe("clipboard app", () => {
       }
     });
     window.history.replaceState({}, "", "/");
+    window.localStorage.clear();
+    document.documentElement.lang = "";
     MockEventSource.instances = [];
     fetchMock.mockReset();
     writeTextMock.mockReset();
@@ -72,6 +75,27 @@ describe("clipboard app", () => {
 
     expect(await screen.findByText("该房间还没有内容。")).toBeInTheDocument();
     expect(document.head.querySelector('meta[name="robots"]')?.getAttribute("content")).toBe("noindex,nofollow");
+  });
+
+  it("switches to English, persists the selection, and updates landing metadata", async () => {
+    const { unmount } = render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "English" }));
+
+    expect(screen.getByRole("heading", { name: "Shared Clipboard" })).toBeInTheDocument();
+    expect(window.localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe("en-US");
+    expect(document.documentElement.lang).toBe("en-US");
+
+    await waitFor(() => {
+      expect(document.title).toBe("Shared Clipboard - Real-time text sync across devices");
+    });
+    expect(document.head.querySelector('meta[name="description"]')?.getAttribute("content")).toBe(
+      "Shared Clipboard is a lightweight text sync tool for quickly sharing links, snippets, and temporary notes across browsers."
+    );
+
+    unmount();
+    render(<App />);
+    expect(screen.getByRole("heading", { name: "Shared Clipboard" })).toBeInTheDocument();
   });
 
   it("submits text and clears the draft", async () => {
@@ -167,10 +191,48 @@ describe("clipboard app", () => {
     });
   });
 
+  it("renders an English room flow with English date formatting", async () => {
+    const createdAt = "2026-03-22T00:00:00.000Z";
+
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        items: [
+          {
+            id: "evt-1",
+            roomId: "ROOM88",
+            content: "Copied from another device",
+            createdAt
+          }
+        ]
+      })
+    });
+
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "English" }));
+    fireEvent.change(screen.getByLabelText("Room code"), { target: { value: "ROOM88" } });
+    fireEvent.click(screen.getByRole("button", { name: "Join room" }));
+
+    expect(await screen.findByText("Copied from another device")).toBeInTheDocument();
+    expect(screen.getByText("Room ROOM88")).toBeInTheDocument();
+    expect(document.title).toBe("Shared Clipboard · Room ROOM88");
+    expect(document.head.querySelector('meta[name="description"]')?.getAttribute("content")).toBe(
+      "Real-time text sync for a temporary shared room."
+    );
+    expect(screen.getByText(new Intl.DateTimeFormat("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      month: "2-digit",
+      day: "2-digit"
+    }).format(new Date(createdAt)))).toBeInTheDocument();
+  });
+
   it("keeps the landing page indexable before entering a room", () => {
     render(<App />);
 
     expect(document.title).toBe("共享粘贴板 - 多设备实时同步文本工具");
     expect(document.head.querySelector('meta[name="robots"]')?.getAttribute("content")).toBe("index,follow");
+    expect(window.localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe("zh-CN");
   });
 });

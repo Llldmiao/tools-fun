@@ -48,6 +48,13 @@ button {
   margin-bottom: 24px;
 }
 
+.hero-topbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+}
+
 .hero-card h1,
 .panel h2 {
   font-family: "IBM Plex Serif", "Noto Serif SC", serif;
@@ -141,6 +148,29 @@ textarea {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
+}
+
+.language-switcher {
+  display: inline-flex;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(31, 70, 50, 0.08);
+  border: 1px solid rgba(22, 35, 27, 0.1);
+}
+
+.language-switcher__button {
+  background: transparent;
+  color: #1f4632;
+  padding: 10px 14px;
+}
+
+.language-switcher__button:hover {
+  transform: none;
+}
+
+.language-switcher__button.is-active {
+  background: #1f4632;
+  color: #f8f2e8;
 }
 
 button {
@@ -327,6 +357,10 @@ button:disabled {
 
   .grid {
     grid-template-columns: 1fr;
+  }
+
+  .hero-topbar {
+    flex-direction: column;
   }
 
   .panel-header,

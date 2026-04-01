@@ -9,8 +9,8 @@ import {
 } from "@tools-fun/shared";
 import type { ClipboardItem, ClipboardStreamEvent } from "@tools-fun/shared";
 import type { FormEvent } from "react";
-
-type ConnectionState = "idle" | "connecting" | "live" | "reconnecting" | "offline";
+import { LANGUAGE_STORAGE_KEY, messages } from "./i18n";
+import type { ConnectionState, ErrorKey, Language } from "./i18n";
 
 function setHeadMeta(name: string, content: string) {
   let meta = document.head.querySelector(`meta[name="${name}"]`);
@@ -22,13 +22,26 @@ function setHeadMeta(name: string, content: string) {
   meta.setAttribute("content", content);
 }
 
-function formatTime(value: string) {
-  return new Intl.DateTimeFormat("zh-CN", {
+function formatTime(value: string, language: Language) {
+  return new Intl.DateTimeFormat(language, {
     hour: "2-digit",
     minute: "2-digit",
     month: "2-digit",
     day: "2-digit"
   }).format(new Date(value));
+}
+
+function getInitialLanguage(): Language {
+  try {
+    const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
+    if (stored === "en-US" || stored === "zh-CN") {
+      return stored;
+    }
+  } catch {
+    return "zh-CN";
+  }
+
+  return "zh-CN";
 }
 
 function mergeItems(current: ClipboardItem[], incoming: ClipboardItem[]) {
@@ -43,16 +56,21 @@ function mergeItems(current: ClipboardItem[], incoming: ClipboardItem[]) {
 }
 
 export function App() {
+  const [language, setLanguage] = useState<Language>(getInitialLanguage);
   const [roomInput, setRoomInput] = useState("");
   const [activeRoom, setActiveRoom] = useState("");
   const [draft, setDraft] = useState("");
   const [items, setItems] = useState<ClipboardItem[]>([]);
-  const [error, setError] = useState("");
+  const [errorKey, setErrorKey] = useState<ErrorKey | "">("");
+  const [serverError, setServerError] = useState("");
   const [copiedItemId, setCopiedItemId] = useState("");
   const [submitState, setSubmitState] = useState<"idle" | "submitting">("idle");
   const [connectionState, setConnectionState] = useState<ConnectionState>("idle");
   const eventSourceRef = useRef<EventSource | null>(null);
   const copyResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const t = messages[language];
+
+  const error = errorKey ? t.errors[errorKey] : serverError;
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -67,6 +85,11 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    document.documentElement.lang = language;
+    window.localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
+  }, [language]);
+
+  useEffect(() => {
     if (!activeRoom) return undefined;
 
     const params = new URLSearchParams(window.location.search);
@@ -75,13 +98,14 @@ export function App() {
 
     let disposed = false;
     setConnectionState("connecting");
-    setError("");
+    setErrorKey("");
+    setServerError("");
 
     async function loadHistory() {
       const response = await fetch(`/api/rooms/${activeRoom}/items`);
       const payload = await response.json();
       if (!response.ok) {
-        throw new Error(payload.error ?? "加载房间失败。");
+        throw new Error(payload.error ?? t.errors.loadRoomFailed);
       }
       if (!disposed) {
         setItems(payload.items);
@@ -111,7 +135,7 @@ export function App() {
       })
       .catch((requestError: Error) => {
         if (!disposed) {
-          setError(requestError.message);
+          setServerError(requestError.message);
           setConnectionState("offline");
         }
       });
@@ -134,38 +158,25 @@ export function App() {
   useEffect(() => {
     const roomMode = activeRoom.length > 0;
 
-    document.title = roomMode ? `共享粘贴板 · 房间 ${activeRoom}` : "共享粘贴板 - 多设备实时同步文本工具";
-    setHeadMeta(
-      "description",
-      roomMode
-        ? "临时共享房间中的实时文本同步视图。"
-        : "共享粘贴板是一个轻量的多设备文本同步工具，让你在浏览器里快速共享链接、代码片段和临时内容。"
-    );
+    document.title = roomMode ? t.roomTitle(activeRoom) : t.pageTitle;
+    setHeadMeta("description", roomMode ? t.roomDescription : t.pageDescription);
     setHeadMeta("robots", roomMode ? "noindex,nofollow" : "index,follow");
-  }, [activeRoom]);
+  }, [activeRoom, t]);
 
   const connectionLabel = useMemo(() => {
-    switch (connectionState) {
-      case "connecting":
-        return "正在连接";
-      case "live":
-        return "实时同步中";
-      case "reconnecting":
-        return "连接中断，正在重连";
-      case "offline":
-        return "当前离线";
-      default:
-        return "尚未进入房间";
-    }
-  }, [connectionState]);
+    return t.status[connectionState];
+  }, [connectionState, t]);
 
   async function handleJoinRoom(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const normalized = normalizeRoomId(roomInput);
     if (!isValidRoomId(normalized)) {
-      setError("房间码需要是 6 到 12 位的大写字母或数字。");
+      setErrorKey("invalidRoom");
+      setServerError("");
       return;
     }
+    setErrorKey("");
+    setServerError("");
     setItems([]);
     setActiveRoom(normalized);
   }
@@ -173,16 +184,19 @@ export function App() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!activeRoom) {
-      setError("先进入一个房间，再发送内容。");
+      setErrorKey("joinRoomFirst");
+      setServerError("");
       return;
     }
     if (!draft.trim()) {
-      setError("内容不能为空。");
+      setErrorKey("emptyDraft");
+      setServerError("");
       return;
     }
 
     setSubmitState("submitting");
-    setError("");
+    setErrorKey("");
+    setServerError("");
 
     try {
       const response = await fetch(`/api/rooms/${activeRoom}/items`, {
@@ -192,11 +206,11 @@ export function App() {
       });
       const payload = await response.json();
       if (!response.ok) {
-        throw new Error(payload.error ?? "发送失败。");
+        throw new Error(payload.error ?? t.errors.submitFailed);
       }
       setDraft("");
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "发送失败。");
+      setServerError(requestError instanceof Error ? requestError.message : t.errors.submitFailed);
     } finally {
       setSubmitState("idle");
     }
@@ -232,70 +246,82 @@ export function App() {
   return (
     <div className="page-shell">
       <section className="hero-card">
-        <p className="kicker">跨设备文本同步</p>
-        <h1>共享粘贴板</h1>
-        <p className="lead">
-          在 A 机器粘贴到 Web 端，B 机器打开同一个房间就能实时看到。
-        </p>
-        <p className="hint">消息仅保留 {CLIPBOARD_RETENTION_DAYS} 天，适合临时同步和短期共享。</p>
+        <div className="hero-topbar">
+          <div>
+            <p className="kicker">{t.kicker}</p>
+            <h1>{t.heroTitle}</h1>
+          </div>
+          <div className="language-switcher" role="group" aria-label={t.languageLabel}>
+            {(["zh-CN", "en-US"] as const).map((nextLanguage) => (
+              <button
+                key={nextLanguage}
+                type="button"
+                className={`language-switcher__button${language === nextLanguage ? " is-active" : ""}`}
+                onClick={() => setLanguage(nextLanguage)}
+                aria-pressed={language === nextLanguage}
+              >
+                {messages[nextLanguage].languageName}
+              </button>
+            ))}
+          </div>
+        </div>
+        <p className="lead">{t.lead}</p>
+        <p className="hint">{t.heroHint(CLIPBOARD_RETENTION_DAYS)}</p>
       </section>
 
       <div className="grid">
         <section className="panel">
           <div className="panel-header">
             <div>
-              <p className="section-label">房间入口</p>
-              <h2>进入同步房间</h2>
+              <p className="section-label">{t.roomSectionLabel}</p>
+              <h2>{t.roomSectionTitle}</h2>
             </div>
             <span className={`status-badge status-badge--${connectionState}`}>{connectionLabel}</span>
           </div>
 
           <form onSubmit={handleJoinRoom} className="stack">
-            <label htmlFor="room-code">房间码</label>
+            <label htmlFor="room-code">{t.roomLabel}</label>
             <input
               id="room-code"
               value={roomInput}
               onChange={(event) => setRoomInput(normalizeRoomId(event.target.value))}
-              placeholder="例如 ROOM88"
+              placeholder={t.roomPlaceholder}
               autoCapitalize="characters"
             />
             <div className="actions">
-              <button type="submit">进入房间</button>
+              <button type="submit">{t.joinRoom}</button>
               <button type="button" className="ghost-button" onClick={handleCreateRoom}>
-                生成新房间
+                {t.createRoom}
               </button>
               <button type="button" className="ghost-button" onClick={handleCopyRoom} disabled={!activeRoom}>
-                复制房间码
+                {t.copyRoom}
               </button>
             </div>
           </form>
 
-          <p className="hint">
-            房间码知道的人都能进入，因此更适合局域网协作、临时同步和个人设备之间传递内容。消息会保留
-            {CLIPBOARD_RETENTION_DAYS} 天，过期后自动清理。
-          </p>
+          <p className="hint">{t.roomHint(CLIPBOARD_RETENTION_DAYS)}</p>
         </section>
 
         <section className="panel">
           <div className="panel-header">
             <div>
-              <p className="section-label">发送内容</p>
-              <h2>把文本贴进来</h2>
+              <p className="section-label">{t.draftSectionLabel}</p>
+              <h2>{t.draftSectionTitle}</h2>
             </div>
             <span className="subtle-count">{draft.length}/{MAX_CLIPBOARD_CONTENT_LENGTH}</span>
           </div>
 
           <form onSubmit={handleSubmit} className="stack">
-            <label htmlFor="clipboard-draft">当前内容</label>
+            <label htmlFor="clipboard-draft">{t.draftLabel}</label>
             <textarea
               id="clipboard-draft"
               rows={8}
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
-              placeholder="把文本、链接或代码片段粘贴到这里。"
+              placeholder={t.draftPlaceholder}
             />
             <button type="submit" disabled={submitState === "submitting"}>
-              {submitState === "submitting" ? "发送中..." : "发送到房间"}
+              {submitState === "submitting" ? t.submitting : t.submit}
             </button>
           </form>
 
@@ -306,14 +332,14 @@ export function App() {
       <section className="panel">
         <div className="panel-header">
           <div>
-            <p className="section-label">同步记录</p>
-            <h2>最近 {MAX_CLIPBOARD_ITEMS} 条</h2>
+            <p className="section-label">{t.historySectionLabel}</p>
+            <h2>{t.historySectionTitle(MAX_CLIPBOARD_ITEMS)}</h2>
           </div>
-          <span className="subtle-count">{activeRoom ? `房间 ${activeRoom}` : "还没进入房间"}</span>
+          <span className="subtle-count">{activeRoom ? t.currentRoom(activeRoom) : t.noActiveRoom}</span>
         </div>
 
         {items.length === 0 ? (
-          <div className="empty-state">该房间还没有内容。</div>
+          <div className="empty-state">{t.emptyState}</div>
         ) : (
           <ol className="message-list">
             {items.map((item) => (
@@ -321,22 +347,22 @@ export function App() {
                 <div className="message-meta">
                   <div className="message-meta__summary">
                     <span>{item.roomId}</span>
-                    <time dateTime={item.createdAt}>{formatTime(item.createdAt)}</time>
+                    <time dateTime={item.createdAt}>{formatTime(item.createdAt, language)}</time>
                   </div>
                   <div className="message-copy-wrap">
                     <button
                       type="button"
                       className={`ghost-button message-copy-button${copiedItemId === item.id ? " is-copied" : ""}`}
                       onClick={() => handleCopyItem(item)}
-                      aria-label={copiedItemId === item.id ? "已复制" : "复制"}
+                      aria-label={copiedItemId === item.id ? t.copied : t.copy}
                     >
                       <span aria-hidden="true">{copiedItemId === item.id ? "✅" : "📋"}</span>
                     </button>
                     <span className="message-copy-tooltip" aria-hidden="true">
-                      复制
+                      {t.copy}
                     </span>
                     <span className={`message-copy-feedback${copiedItemId === item.id ? " is-visible" : ""}`}>
-                      已复制
+                      {t.copied}
                     </span>
                   </div>
                 </div>
