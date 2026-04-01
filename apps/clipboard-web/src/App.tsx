@@ -237,6 +237,7 @@ export function App() {
         <p className="lead">
           在 A 机器粘贴到 Web 端，B 机器打开同一个房间就能实时看到。
         </p>
+        <p className="hint">消息仅保留 {CLIPBOARD_RETENTION_DAYS} 天，适合临时同步和短期共享。</p>
       </section>
 
       <div className="grid">
