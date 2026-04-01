@@ -1,0 +1,23 @@
+name = "clipboard-app"
+main = "apps/clipboard-api/src/worker.mjs"
+compatibility_date = "2026-04-01"
+
+[assets]
+directory = "./apps/clipboard-web/dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*", "/health"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "clipboard-db"
+database_id = "7afbaa5f-0fd1-4878-984f-6bc36c7878ff"
+migrations_dir = "apps/clipboard-api/migrations"
+
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "RoomDurableObject"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RoomDurableObject"]
