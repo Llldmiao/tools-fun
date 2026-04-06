@@ -50,12 +50,12 @@ test("rejects invalid room ids", async () => {
   });
 });
 
-test("stores a posted item and returns it in history", async () => {
+test("stores a posted text item and returns it in history", async () => {
   await withServer(async (baseUrl) => {
     const postResponse = await fetch(`${baseUrl}/api/rooms/ROOM88/items`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ content: "hello from machine A" })
+      body: JSON.stringify({ type: "text", content: "hello from machine A" })
     });
     assert.equal(postResponse.status, 201);
 
@@ -64,7 +64,52 @@ test("stores a posted item and returns it in history", async () => {
 
     assert.equal(payload.items.length, 1);
     assert.equal(payload.items[0].roomId, "ROOM88");
+    assert.equal(payload.items[0].type, "text");
     assert.equal(payload.items[0].content, "hello from machine A");
+  });
+});
+
+test("uploads a file, creates an item, and serves the file back", async () => {
+  await withServer(async (baseUrl) => {
+    const formData = new FormData();
+    formData.append("file", new File(["fake image bytes"], "demo.png", { type: "image/png" }));
+
+    const uploadResponse = await fetch(`${baseUrl}/api/rooms/ROOM88/uploads`, {
+      method: "POST",
+      body: formData
+    });
+    assert.equal(uploadResponse.status, 201);
+    const uploadPayload = await uploadResponse.json();
+
+    const itemResponse = await fetch(`${baseUrl}/api/rooms/ROOM88/items`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(uploadPayload.upload)
+    });
+    assert.equal(itemResponse.status, 201);
+    const itemPayload = await itemResponse.json();
+
+    assert.equal(itemPayload.item.type, "image");
+    assert.equal(itemPayload.item.fileName, "demo.png");
+
+    const downloadResponse = await fetch(`${baseUrl}${itemPayload.item.downloadUrl}`);
+    assert.equal(downloadResponse.status, 200);
+    assert.equal(downloadResponse.headers.get("content-type"), "image/png");
+    assert.match(downloadResponse.headers.get("content-disposition") ?? "", /inline/);
+    assert.equal(await downloadResponse.text(), "fake image bytes");
+  });
+});
+
+test("rejects unsupported file uploads", async () => {
+  await withServer(async (baseUrl) => {
+    const formData = new FormData();
+    formData.append("file", new File(["binary"], "bad.exe", { type: "application/octet-stream" }));
+
+    const response = await fetch(`${baseUrl}/api/rooms/ROOM88/uploads`, {
+      method: "POST",
+      body: formData
+    });
+    assert.equal(response.status, 422);
   });
 });
 
@@ -74,7 +119,7 @@ test("keeps the newest 20 items in descending order", async () => {
       const response = await fetch(`${baseUrl}/api/rooms/ROOM99/items`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ content: `item-${index}` })
+        body: JSON.stringify({ type: "text", content: `item-${index}` })
       });
       assert.equal(response.status, 201);
     }
@@ -88,7 +133,7 @@ test("keeps the newest 20 items in descending order", async () => {
   });
 });
 
-test("broadcasts new items over SSE only to the matching room", async () => {
+test("broadcasts new file items over SSE only to the matching room", async () => {
   await withServer(async (baseUrl) => {
     const roomAResponse = await fetch(`${baseUrl}/api/rooms/ROOMAA/stream`);
     const roomBResponse = await fetch(`${baseUrl}/api/rooms/ROOMBB/stream`);
@@ -99,16 +144,25 @@ test("broadcasts new items over SSE only to the matching room", async () => {
     const roomAReader = roomAResponse.body.getReader();
     const roomBReader = roomBResponse.body.getReader();
 
+    const formData = new FormData();
+    formData.append("file", new File(["pdf-body"], "notes.pdf", { type: "application/pdf" }));
+    const uploadResponse = await fetch(`${baseUrl}/api/rooms/ROOMAA/uploads`, {
+      method: "POST",
+      body: formData
+    });
+    const uploadPayload = await uploadResponse.json();
+
     await fetch(`${baseUrl}/api/rooms/ROOMAA/items`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ content: "sync me" })
+      body: JSON.stringify(uploadPayload.upload)
     });
 
     const event = await readEvent(roomAReader);
     assert.equal(event.type, "item_created");
     assert.equal(event.item.roomId, "ROOMAA");
-    assert.equal(event.item.content, "sync me");
+    assert.equal(event.item.type, "file");
+    assert.equal(event.item.fileName, "notes.pdf");
 
     const roomBResult = await Promise.race([
       readEvent(roomBReader).then(() => "event"),

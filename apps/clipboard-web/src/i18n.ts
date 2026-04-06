@@ -31,9 +31,15 @@ type Messages = {
   roomHint: (days: number) => string;
   draftSectionLabel: string;
   draftSectionTitle: string;
+  fileDraftSectionTitle: string;
   draftLabel: string;
   draftPlaceholder: string;
+  fileDraftPlaceholder: string;
+  filePickerButton: string;
+  clearFileButton: string;
+  fileSupportHint: string;
   submit: string;
+  uploadSubmit: string;
   submitting: string;
   historySectionLabel: string;
   historySectionTitle: (count: number) => string;
@@ -42,6 +48,15 @@ type Messages = {
   emptyState: string;
   copy: string;
   copied: string;
+  download: string;
+  itemTypeText: string;
+  itemTypeImage: string;
+  itemTypeFile: string;
+  unnamedFile: string;
+  unknownType: string;
+  fileSizeBytes: string;
+  fileSizeKilobytes: string;
+  fileSizeMegabytes: string;
   status: Record<ConnectionState, string>;
   errors: Record<ErrorKey, string>;
 };
@@ -56,9 +71,9 @@ export const messages: Record<Language, Messages> = {
       "共享粘贴板是一个轻量的多设备文本同步工具，让你在浏览器里快速共享链接、代码片段和临时内容。",
     roomTitle: (room) => `共享粘贴板 · 房间 ${room}`,
     roomDescription: "临时共享房间中的实时文本同步视图。",
-    kicker: "跨设备文本同步",
+    kicker: "跨设备文本与文件同步",
     heroTitle: "共享粘贴板",
-    lead: "在 A 机器粘贴到 Web 端，B 机器打开同一个房间就能实时看到。",
+    lead: "在 A 机器上传文本或文件，B 机器打开同一个房间就能实时看到。",
     heroHint: (days) => `消息仅保留 ${days} 天，适合临时同步和短期共享。`,
     roomSectionLabel: "房间入口",
     roomSectionTitle: "进入同步房间",
@@ -71,9 +86,15 @@ export const messages: Record<Language, Messages> = {
       `房间码知道的人都能进入，因此更适合局域网协作、临时同步和个人设备之间传递内容。消息会保留${days} 天，过期后自动清理。`,
     draftSectionLabel: "发送内容",
     draftSectionTitle: "把文本贴进来",
+    fileDraftSectionTitle: "上传一个文件",
     draftLabel: "当前内容",
     draftPlaceholder: "把文本、链接或代码片段粘贴到这里。",
+    fileDraftPlaceholder: "已选择文件，发送时会上传该文件。",
+    filePickerButton: "选择图片或文件",
+    clearFileButton: "清除文件",
+    fileSupportHint: "支持 PNG、JPG、GIF、WEBP、PDF、TXT、MD、JSON、CSV、ZIP。一次上传 1 个文件。",
     submit: "发送到房间",
+    uploadSubmit: "上传到房间",
     submitting: "发送中...",
     historySectionLabel: "同步记录",
     historySectionTitle: (count) => `最近 ${count} 条`,
@@ -82,6 +103,15 @@ export const messages: Record<Language, Messages> = {
     emptyState: "该房间还没有内容。",
     copy: "复制",
     copied: "已复制",
+    download: "下载",
+    itemTypeText: "文本",
+    itemTypeImage: "图片",
+    itemTypeFile: "文件",
+    unnamedFile: "未命名文件",
+    unknownType: "未知类型",
+    fileSizeBytes: "B",
+    fileSizeKilobytes: "KB",
+    fileSizeMegabytes: "MB",
     status: {
       idle: "尚未进入房间",
       connecting: "正在连接",
@@ -106,9 +136,9 @@ export const messages: Record<Language, Messages> = {
       "Shared Clipboard is a lightweight text sync tool for quickly sharing links, snippets, and temporary notes across browsers.",
     roomTitle: (room) => `Shared Clipboard · Room ${room}`,
     roomDescription: "Real-time text sync for a temporary shared room.",
-    kicker: "Cross-device text sync",
+    kicker: "Cross-device text and file sync",
     heroTitle: "Shared Clipboard",
-    lead: "Paste on machine A, open the same room on machine B, and the text appears in real time.",
+    lead: "Upload text or a file on machine A, open the same room on machine B, and it appears in real time.",
     heroHint: (days) => `Messages are kept for ${days} days, which works well for short-term syncing and sharing.`,
     roomSectionLabel: "Room Access",
     roomSectionTitle: "Join a sync room",
@@ -119,19 +149,34 @@ export const messages: Record<Language, Messages> = {
     copyRoom: "Copy room code",
     roomHint: (days) =>
       `Anyone with the room code can enter, so this is best for LAN collaboration, temporary syncing, and moving content between your own devices. Messages are kept for ${days} days and then cleaned up automatically.`,
-    draftSectionLabel: "Send Text",
+    draftSectionLabel: "Send Content",
     draftSectionTitle: "Paste text here",
-    draftLabel: "Current text",
+    fileDraftSectionTitle: "Upload one file",
+    draftLabel: "Current content",
     draftPlaceholder: "Paste text, links, or code snippets here.",
+    fileDraftPlaceholder: "A file is selected and will be uploaded when you submit.",
+    filePickerButton: "Choose image or file",
+    clearFileButton: "Clear file",
+    fileSupportHint: "Supports PNG, JPG, GIF, WEBP, PDF, TXT, MD, JSON, CSV, and ZIP. One file per upload.",
     submit: "Send to room",
+    uploadSubmit: "Upload to room",
     submitting: "Sending...",
     historySectionLabel: "Recent Syncs",
     historySectionTitle: (count) => `Latest ${count}`,
     currentRoom: (room) => `Room ${room}`,
     noActiveRoom: "No room joined yet",
-    emptyState: "No shared text in this room yet.",
+    emptyState: "No shared content in this room yet.",
     copy: "Copy",
     copied: "Copied",
+    download: "Download",
+    itemTypeText: "Text",
+    itemTypeImage: "Image",
+    itemTypeFile: "File",
+    unnamedFile: "Unnamed file",
+    unknownType: "Unknown type",
+    fileSizeBytes: "B",
+    fileSizeKilobytes: "KB",
+    fileSizeMegabytes: "MB",
     status: {
       idle: "No room joined",
       connecting: "Connecting",

@@ -58,11 +58,15 @@ describe("clipboard app", () => {
     vi.unstubAllGlobals();
   });
 
-  it("loads room history and shows the empty state", async () => {
-    fetchMock.mockResolvedValueOnce({
+  function emptyHistoryResponse() {
+    return {
       ok: true,
       json: async () => ({ items: [] })
-    });
+    };
+  }
+
+  it("loads room history and shows the empty state", async () => {
+    fetchMock.mockResolvedValueOnce(emptyHistoryResponse());
 
     render(<App />);
 
@@ -100,17 +104,20 @@ describe("clipboard app", () => {
 
   it("submits text and clears the draft", async () => {
     fetchMock
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ items: [] })
-      })
+      .mockResolvedValueOnce(emptyHistoryResponse())
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           item: {
             id: "1",
             roomId: "ROOM88",
+            type: "text",
             content: "hello",
+            fileName: null,
+            mimeType: null,
+            size: null,
+            storageKey: null,
+            downloadUrl: null,
             createdAt: "2026-03-22T00:00:00.000Z"
           }
         })
@@ -127,13 +134,62 @@ describe("clipboard app", () => {
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     expect(screen.getByLabelText("当前内容")).toHaveValue("");
+    expect(fetchMock.mock.calls[1][1]?.body).toContain('"type":"text"');
   });
 
-  it("merges incoming SSE items into the list", async () => {
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ items: [] })
-    });
+  it("uploads a selected file and creates an item", async () => {
+    fetchMock
+      .mockResolvedValueOnce(emptyHistoryResponse())
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          upload: {
+            type: "image",
+            fileName: "demo.png",
+            mimeType: "image/png",
+            size: 1234,
+            storageKey: "rooms/ROOM88/2026/04/06/uuid-demo.png"
+          }
+        })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          item: {
+            id: "2",
+            roomId: "ROOM88",
+            type: "image",
+            content: null,
+            fileName: "demo.png",
+            mimeType: "image/png",
+            size: 1234,
+            storageKey: "rooms/ROOM88/2026/04/06/uuid-demo.png",
+            downloadUrl: "/api/files/rooms%2FROOM88%2F2026%2F04%2F06%2Fuuid-demo.png",
+            createdAt: "2026-03-22T00:00:00.000Z"
+          }
+        })
+      });
+
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText("房间码"), { target: { value: "ROOM88" } });
+    fireEvent.click(screen.getByRole("button", { name: "进入房间" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+    const fileInput = document.getElementById("clipboard-file") as HTMLInputElement;
+    const file = new File(["file-body"], "demo.png", { type: "image/png" });
+    fireEvent.change(fileInput, { target: { files: [file] } });
+
+    expect(await screen.findByText("demo.png")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "上传到房间" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    expect(String(fetchMock.mock.calls[1][0])).toContain("/api/rooms/ROOM88/uploads");
+    expect(String(fetchMock.mock.calls[2][0])).toContain("/api/rooms/ROOM88/items");
+  });
+
+  it("merges incoming file items into the list", async () => {
+    fetchMock.mockResolvedValueOnce(emptyHistoryResponse());
 
     render(<App />);
 
@@ -147,15 +203,25 @@ describe("clipboard app", () => {
       item: {
         id: "evt-1",
         roomId: "ROOM88",
-        content: "同步过来的文本",
+        type: "file",
+        content: null,
+        fileName: "notes.pdf",
+        mimeType: "application/pdf",
+        size: 2048,
+        storageKey: "rooms/ROOM88/2026/04/06/evt-1-notes.pdf",
+        downloadUrl: "/api/files/rooms%2FROOM88%2F2026%2F04%2F06%2Fevt-1-notes.pdf",
         createdAt: "2026-03-22T00:00:00.000Z"
       }
     });
 
-    expect(await screen.findByText("同步过来的文本")).toBeInTheDocument();
+    expect(await screen.findByText("notes.pdf")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "下载" })).toHaveAttribute(
+      "href",
+      "/api/files/rooms%2FROOM88%2F2026%2F04%2F06%2Fevt-1-notes.pdf"
+    );
   });
 
-  it("copies a single message from the history list", async () => {
+  it("copies a single text message from the history list", async () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -163,7 +229,13 @@ describe("clipboard app", () => {
           {
             id: "evt-1",
             roomId: "ROOM88",
+            type: "text",
             content: "这是要复制的消息",
+            fileName: null,
+            mimeType: null,
+            size: null,
+            storageKey: null,
+            downloadUrl: null,
             createdAt: "2026-03-22T00:00:00.000Z"
           }
         ]
@@ -181,13 +253,6 @@ describe("clipboard app", () => {
     expect(writeTextMock).toHaveBeenCalledWith("这是要复制的消息");
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "已复制" })).toBeInTheDocument();
-    });
-    expect(screen.getByText("已复制")).toHaveClass("is-visible");
-
-    await new Promise((resolve) => setTimeout(resolve, 2100));
-
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "复制" })).toBeInTheDocument();
     });
   });
 

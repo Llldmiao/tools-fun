@@ -24,6 +24,11 @@ textarea {
   font: inherit;
 }
 
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
 button {
   cursor: pointer;
 }
@@ -226,6 +231,10 @@ button:disabled {
   color: #4e6a58;
 }
 
+.compact-hint {
+  margin-top: 0;
+}
+
 .error-text {
   margin: 14px 0 0;
   color: #b33c25;
@@ -254,6 +263,39 @@ button:disabled {
   border: 1px solid rgba(22, 35, 27, 0.1);
 }
 
+.file-picker-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.file-picker-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  padding-inline: 18px;
+}
+
+.file-input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 1px;
+  height: 1px;
+}
+
+.selected-file-card {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(33, 91, 52, 0.16);
+  background: rgba(226, 241, 230, 0.72);
+  color: #244734;
+}
+
 .message-meta {
   display: flex;
   justify-content: space-between;
@@ -268,6 +310,15 @@ button:disabled {
   gap: 12px;
   flex-wrap: wrap;
   align-items: center;
+}
+
+.message-type-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(78, 106, 88, 0.08);
 }
 
 .message-copy-wrap {
@@ -350,6 +401,37 @@ button:disabled {
   overflow-x: auto;
 }
 
+.attachment-card {
+  display: grid;
+  gap: 14px;
+}
+
+.attachment-preview-link {
+  display: block;
+}
+
+.attachment-preview {
+  display: block;
+  width: min(100%, 420px);
+  max-height: 280px;
+  object-fit: cover;
+  border-radius: 16px;
+  border: 1px solid rgba(22, 35, 27, 0.12);
+  background: rgba(248, 242, 232, 0.9);
+}
+
+.attachment-meta {
+  display: grid;
+  gap: 4px;
+  color: #33463a;
+}
+
+.download-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 @media (max-width: 840px) {
   .page-shell {
     padding: 24px 16px 56px;
@@ -375,5 +457,9 @@ button:disabled {
 
   .message-copy-wrap {
     align-self: flex-start;
+  }
+
+  .attachment-preview {
+    width: 100%;
   }
 }

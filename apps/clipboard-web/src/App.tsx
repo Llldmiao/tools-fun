@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  ALLOWED_GENERIC_FILE_MIME_TYPES,
+  ALLOWED_IMAGE_MIME_TYPES,
   CLIPBOARD_RETENTION_DAYS,
   MAX_CLIPBOARD_CONTENT_LENGTH,
   MAX_CLIPBOARD_ITEMS,
@@ -8,9 +10,13 @@ import {
   normalizeRoomId
 } from "@tools-fun/shared";
 import type { ClipboardItem, ClipboardStreamEvent } from "@tools-fun/shared";
-import type { FormEvent } from "react";
+import type { ChangeEvent, FormEvent } from "react";
 import { LANGUAGE_STORAGE_KEY, messages } from "./i18n";
 import type { ConnectionState, ErrorKey, Language } from "./i18n";
+
+type SubmitState = "idle" | "submitting";
+
+const ACCEPTED_FILE_TYPES = [...ALLOWED_IMAGE_MIME_TYPES, ...ALLOWED_GENERIC_FILE_MIME_TYPES].join(",");
 
 function setHeadMeta(name: string, content: string) {
   let meta = document.head.querySelector(`meta[name="${name}"]`);
@@ -29,6 +35,13 @@ function formatTime(value: string, language: Language) {
     month: "2-digit",
     day: "2-digit"
   }).format(new Date(value));
+}
+
+function formatFileSize(value: number | null, unitShort: string, unitMedium: string, unitLarge: string) {
+  if (value == null) return "";
+  if (value < 1024) return `${value} ${unitShort}`;
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} ${unitMedium}`;
+  return `${(value / (1024 * 1024)).toFixed(1)} ${unitLarge}`;
 }
 
 function getInitialLanguage(): Language {
@@ -55,19 +68,25 @@ function mergeItems(current: ClipboardItem[], incoming: ClipboardItem[]) {
     .slice(0, MAX_CLIPBOARD_ITEMS);
 }
 
+function getNormalizedItemType(item: ClipboardItem) {
+  return item.type === "image" || item.type === "file" ? item.type : "text";
+}
+
 export function App() {
   const [language, setLanguage] = useState<Language>(getInitialLanguage);
   const [roomInput, setRoomInput] = useState("");
   const [activeRoom, setActiveRoom] = useState("");
   const [draft, setDraft] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [items, setItems] = useState<ClipboardItem[]>([]);
   const [errorKey, setErrorKey] = useState<ErrorKey | "">("");
   const [serverError, setServerError] = useState("");
   const [copiedItemId, setCopiedItemId] = useState("");
-  const [submitState, setSubmitState] = useState<"idle" | "submitting">("idle");
+  const [submitState, setSubmitState] = useState<SubmitState>("idle");
   const [connectionState, setConnectionState] = useState<ConnectionState>("idle");
   const eventSourceRef = useRef<EventSource | null>(null);
   const copyResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const t = messages[language];
 
   const error = errorKey ? t.errors[errorKey] : serverError;
@@ -145,7 +164,7 @@ export function App() {
       eventSourceRef.current?.close();
       eventSourceRef.current = null;
     };
-  }, [activeRoom]);
+  }, [activeRoom, t.errors.loadRoomFailed]);
 
   useEffect(() => {
     return () => {
@@ -163,9 +182,14 @@ export function App() {
     setHeadMeta("robots", roomMode ? "noindex,nofollow" : "index,follow");
   }, [activeRoom, t]);
 
-  const connectionLabel = useMemo(() => {
-    return t.status[connectionState];
-  }, [connectionState, t]);
+  const connectionLabel = useMemo(() => t.status[connectionState], [connectionState, t]);
+
+  const composeLabel = useMemo(() => {
+    if (selectedFile) {
+      return `${selectedFile.name} · ${formatFileSize(selectedFile.size, t.fileSizeBytes, t.fileSizeKilobytes, t.fileSizeMegabytes)}`;
+    }
+    return `${draft.length}/${MAX_CLIPBOARD_CONTENT_LENGTH}`;
+  }, [draft.length, selectedFile, t]);
 
   async function handleJoinRoom(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -175,10 +199,39 @@ export function App() {
       setServerError("");
       return;
     }
+
     setErrorKey("");
     setServerError("");
     setItems([]);
+    setSelectedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
     setActiveRoom(normalized);
+  }
+
+  async function uploadSelectedFile(roomId: string, file: File) {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const uploadResponse = await fetch(`/api/rooms/${roomId}/uploads`, {
+      method: "POST",
+      body: formData
+    });
+    const uploadPayload = await uploadResponse.json();
+    if (!uploadResponse.ok) {
+      throw new Error(uploadPayload.error ?? t.errors.submitFailed);
+    }
+
+    const itemResponse = await fetch(`/api/rooms/${roomId}/items`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(uploadPayload.upload)
+    });
+    const itemPayload = await itemResponse.json();
+    if (!itemResponse.ok) {
+      throw new Error(itemPayload.error ?? t.errors.submitFailed);
+    }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -188,7 +241,7 @@ export function App() {
       setServerError("");
       return;
     }
-    if (!draft.trim()) {
+    if (!selectedFile && !draft.trim()) {
       setErrorKey("emptyDraft");
       setServerError("");
       return;
@@ -199,20 +252,42 @@ export function App() {
     setServerError("");
 
     try {
-      const response = await fetch(`/api/rooms/${activeRoom}/items`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ content: draft })
-      });
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload.error ?? t.errors.submitFailed);
+      if (selectedFile) {
+        await uploadSelectedFile(activeRoom, selectedFile);
+        setSelectedFile(null);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+      } else {
+        const response = await fetch(`/api/rooms/${activeRoom}/items`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ type: "text", content: draft })
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.error ?? t.errors.submitFailed);
+        }
+        setDraft("");
       }
-      setDraft("");
     } catch (requestError) {
       setServerError(requestError instanceof Error ? requestError.message : t.errors.submitFailed);
     } finally {
       setSubmitState("idle");
+    }
+  }
+
+  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const nextFile = event.target.files?.[0] ?? null;
+    setSelectedFile(nextFile);
+    setErrorKey("");
+    setServerError("");
+  }
+
+  function handleClearFile() {
+    setSelectedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
     }
   }
 
@@ -222,7 +297,7 @@ export function App() {
   }
 
   async function handleCopyItem(item: ClipboardItem) {
-    if (!navigator.clipboard) return;
+    if (!navigator.clipboard || item.type !== "text" || !item.content) return;
     await navigator.clipboard.writeText(item.content);
     setCopiedItemId(item.id);
 
@@ -240,7 +315,18 @@ export function App() {
     const nextRoom = createRoomId();
     setRoomInput(nextRoom);
     setItems([]);
+    setSelectedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
     setActiveRoom(nextRoom);
+  }
+
+  function getItemTypeLabel(item: ClipboardItem) {
+    const itemType = getNormalizedItemType(item);
+    if (itemType === "image") return t.itemTypeImage;
+    if (itemType === "file") return t.itemTypeFile;
+    return t.itemTypeText;
   }
 
   return (
@@ -288,6 +374,7 @@ export function App() {
               placeholder={t.roomPlaceholder}
               autoCapitalize="characters"
             />
+
             <div className="actions">
               <button type="submit">{t.joinRoom}</button>
               <button type="button" className="ghost-button" onClick={handleCreateRoom}>
@@ -306,9 +393,9 @@ export function App() {
           <div className="panel-header">
             <div>
               <p className="section-label">{t.draftSectionLabel}</p>
-              <h2>{t.draftSectionTitle}</h2>
+              <h2>{selectedFile ? t.fileDraftSectionTitle : t.draftSectionTitle}</h2>
             </div>
-            <span className="subtle-count">{draft.length}/{MAX_CLIPBOARD_CONTENT_LENGTH}</span>
+            <span className="subtle-count">{composeLabel}</span>
           </div>
 
           <form onSubmit={handleSubmit} className="stack">
@@ -317,11 +404,42 @@ export function App() {
               id="clipboard-draft"
               rows={8}
               value={draft}
+              disabled={selectedFile !== null}
               onChange={(event) => setDraft(event.target.value)}
-              placeholder={t.draftPlaceholder}
+              placeholder={selectedFile ? t.fileDraftPlaceholder : t.draftPlaceholder}
             />
+
+            <div className="file-picker-row">
+              <label htmlFor="clipboard-file" className="file-picker-button ghost-button">
+                {t.filePickerButton}
+              </label>
+              <input
+                ref={fileInputRef}
+                id="clipboard-file"
+                type="file"
+                accept={ACCEPTED_FILE_TYPES}
+                onChange={handleFileChange}
+                className="file-input"
+              />
+              {selectedFile ? (
+                <button type="button" className="ghost-button" onClick={handleClearFile}>
+                  {t.clearFileButton}
+                </button>
+              ) : null}
+            </div>
+
+            {selectedFile ? (
+              <div className="selected-file-card">
+                <strong>{selectedFile.name}</strong>
+                <span>{selectedFile.type || t.unknownType}</span>
+                <span>{formatFileSize(selectedFile.size, t.fileSizeBytes, t.fileSizeKilobytes, t.fileSizeMegabytes)}</span>
+              </div>
+            ) : (
+              <p className="hint compact-hint">{t.fileSupportHint}</p>
+            )}
+
             <button type="submit" disabled={submitState === "submitting"}>
-              {submitState === "submitting" ? t.submitting : t.submit}
+              {submitState === "submitting" ? t.submitting : selectedFile ? t.uploadSubmit : t.submit}
             </button>
           </form>
 
@@ -342,33 +460,66 @@ export function App() {
           <div className="empty-state">{t.emptyState}</div>
         ) : (
           <ol className="message-list">
-            {items.map((item) => (
-              <li key={item.id} className="message-card">
+            {items.map((item) => {
+              const itemType = getNormalizedItemType(item);
+
+              return (
+                <li key={item.id} className="message-card">
                 <div className="message-meta">
                   <div className="message-meta__summary">
                     <span>{item.roomId}</span>
+                    <span className="message-type-tag">{getItemTypeLabel(item)}</span>
                     <time dateTime={item.createdAt}>{formatTime(item.createdAt, language)}</time>
                   </div>
-                  <div className="message-copy-wrap">
-                    <button
-                      type="button"
-                      className={`ghost-button message-copy-button${copiedItemId === item.id ? " is-copied" : ""}`}
-                      onClick={() => handleCopyItem(item)}
-                      aria-label={copiedItemId === item.id ? t.copied : t.copy}
-                    >
-                      <span aria-hidden="true">{copiedItemId === item.id ? "✅" : "📋"}</span>
-                    </button>
-                    <span className="message-copy-tooltip" aria-hidden="true">
-                      {t.copy}
-                    </span>
-                    <span className={`message-copy-feedback${copiedItemId === item.id ? " is-visible" : ""}`}>
-                      {t.copied}
-                    </span>
-                  </div>
+
+                  {itemType === "text" ? (
+                    <div className="message-copy-wrap">
+                      <button
+                        type="button"
+                        className={`ghost-button message-copy-button${copiedItemId === item.id ? " is-copied" : ""}`}
+                        onClick={() => handleCopyItem(item)}
+                        aria-label={copiedItemId === item.id ? t.copied : t.copy}
+                      >
+                        <span aria-hidden="true">{copiedItemId === item.id ? "✅" : "📋"}</span>
+                      </button>
+                      <span className="message-copy-tooltip" aria-hidden="true">
+                        {t.copy}
+                      </span>
+                      <span className={`message-copy-feedback${copiedItemId === item.id ? " is-visible" : ""}`}>
+                        {t.copied}
+                      </span>
+                    </div>
+                  ) : item.downloadUrl ? (
+                    <a className="ghost-button download-button" href={item.downloadUrl}>
+                      {t.download}
+                    </a>
+                  ) : null}
                 </div>
-                <pre>{item.content}</pre>
-              </li>
-            ))}
+
+                {itemType === "text" ? (
+                  <pre>{item.content}</pre>
+                ) : (
+                  <div className="attachment-card">
+                    {itemType === "image" && item.downloadUrl ? (
+                      <a href={item.downloadUrl} className="attachment-preview-link">
+                        <img
+                          className="attachment-preview"
+                          src={item.downloadUrl}
+                          alt={item.fileName ?? t.unnamedFile}
+                          loading="lazy"
+                        />
+                      </a>
+                    ) : null}
+                    <div className="attachment-meta">
+                      <strong>{item.fileName ?? t.unnamedFile}</strong>
+                      <span>{item.mimeType ?? t.unknownType}</span>
+                      <span>{formatFileSize(item.size, t.fileSizeBytes, t.fileSizeKilobytes, t.fileSizeMegabytes)}</span>
+                    </div>
+                  </div>
+                )}
+                </li>
+              );
+            })}
           </ol>
         )}
       </section>

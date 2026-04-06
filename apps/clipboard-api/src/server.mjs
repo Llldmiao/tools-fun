@@ -1,10 +1,18 @@
 import http from "node:http";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { basename, dirname, extname, resolve } from "node:path";
 import { URL } from "node:url";
 
 import {
   MAX_CLIPBOARD_ITEMS,
   assertRoomId,
-  parseClipboardPayload
+  getClipboardItemTypeForMimeType,
+  parseClipboardPayload,
+  sanitizeClipboardFileName,
+  sanitizeClipboardFileSize,
+  resolveClipboardMimeType,
+  sanitizeClipboardStorageKey
 } from "@tools-fun/shared";
 import { createClipboardStore } from "./store.mjs";
 
@@ -38,6 +46,48 @@ async function readJsonBody(req) {
   return JSON.parse(Buffer.concat(chunks).toString("utf8"));
 }
 
+async function readFormDataBody(req, url) {
+  const request = new Request(url, {
+    method: req.method,
+    headers: req.headers,
+    body: req,
+    duplex: "half"
+  });
+  return request.formData();
+}
+
+function createStorageKey(roomId, fileName) {
+  const now = new Date();
+  const year = String(now.getUTCFullYear());
+  const month = String(now.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(now.getUTCDate()).padStart(2, "0");
+  const extension = extname(fileName).slice(0, 16).toLowerCase();
+  const baseName = basename(fileName, extname(fileName))
+    .replace(/[^a-zA-Z0-9-_]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80) || "file";
+
+  return `rooms/${roomId}/${year}/${month}/${day}/${randomUUID()}-${baseName}${extension}`;
+}
+
+function resolveStoragePath(rootDir, storageKey) {
+  const target = resolve(rootDir, storageKey);
+  if (target !== rootDir && !target.startsWith(`${rootDir}/`)) {
+    throw new Error("Storage key is invalid.");
+  }
+  return target;
+}
+
+function setDownloadHeaders(res, mimeType, fileName, size) {
+  const disposition = mimeType.startsWith("image/") ? "inline" : "attachment";
+  res.writeHead(200, {
+    "content-type": mimeType,
+    "content-length": String(size),
+    "content-disposition": `${disposition}; filename*=UTF-8''${encodeURIComponent(fileName)}`,
+    "cache-control": "private, max-age=604800, immutable"
+  });
+}
+
 export function createClipboardServer({
   dbPath,
   port = 8787,
@@ -46,6 +96,7 @@ export function createClipboardServer({
 }) {
   const store = createClipboardStore({ dbPath });
   const roomStreams = new Map();
+  const uploadsDir = resolve(dirname(dbPath), "uploads");
 
   function broadcast(roomId, event) {
     const listeners = roomStreams.get(roomId);
@@ -92,7 +143,28 @@ export function createClipboardServer({
       return;
     }
 
-    const routeMatch = url.pathname.match(/^\/api\/rooms\/([^/]+)\/(items|stream)$/);
+    const fileRoute = url.pathname.match(/^\/api\/files\/(.+)$/);
+    if (req.method === "GET" && fileRoute) {
+      try {
+        const storageKey = sanitizeClipboardStorageKey(decodeURIComponent(fileRoute[1]));
+        const item = store.getItemByStorageKey(storageKey);
+        if (!item || !item.storageKey || !item.fileName || !item.mimeType || item.size == null) {
+          json(res, 404, { error: "File not found." }, originHeaders);
+          return;
+        }
+
+        const filePath = resolveStoragePath(uploadsDir, storageKey);
+        const fileBuffer = await readFile(filePath);
+        setDownloadHeaders(res, item.mimeType, item.fileName, fileBuffer.byteLength);
+        res.end(fileBuffer);
+      } catch (error) {
+        const statusCode = error && typeof error === "object" && "code" in error && error.code === "ENOENT" ? 404 : 422;
+        json(res, statusCode, { error: statusCode === 404 ? "File not found." : error.message }, originHeaders);
+      }
+      return;
+    }
+
+    const routeMatch = url.pathname.match(/^\/api\/rooms\/([^/]+)\/(items|stream|uploads)$/);
     if (!routeMatch) {
       json(res, 404, { error: "Not found." }, originHeaders);
       return;
@@ -111,9 +183,51 @@ export function createClipboardServer({
       if (req.method === "POST" && resource === "items") {
         const body = await readJsonBody(req);
         const payload = parseClipboardPayload(body);
-        const item = store.insertItem(roomId, payload.content);
+        const item = store.insertItem(roomId, payload);
         broadcast(roomId, { type: "item_created", item });
         json(res, 201, { item }, originHeaders);
+        return;
+      }
+
+      if (req.method === "POST" && resource === "uploads") {
+        const formData = await readFormDataBody(req, url);
+        const file = formData.get("file");
+        if (!(file instanceof File)) {
+          throw new Error("A file is required.");
+        }
+
+        const fileName = sanitizeClipboardFileName(file.name);
+        const mimeType = resolveClipboardMimeType(file.type, file.name);
+        const size = sanitizeClipboardFileSize(file.size);
+        const type = getClipboardItemTypeForMimeType(mimeType);
+        const payload = parseClipboardPayload({
+          type,
+          fileName,
+          mimeType,
+          size,
+          storageKey: createStorageKey(roomId, fileName)
+        });
+        const arrayBuffer = await file.arrayBuffer();
+        const fileBuffer = Buffer.from(arrayBuffer);
+        const storagePath = resolveStoragePath(uploadsDir, payload.storageKey);
+
+        await mkdir(dirname(storagePath), { recursive: true });
+        await writeFile(storagePath, fileBuffer);
+
+        json(
+          res,
+          201,
+          {
+            upload: {
+              fileName: payload.fileName,
+              mimeType: payload.mimeType,
+              size: payload.size,
+              storageKey: payload.storageKey,
+              type
+            }
+          },
+          originHeaders
+        );
         return;
       }
 
@@ -149,11 +263,12 @@ export function createClipboardServer({
   return {
     store,
     async start() {
-      await new Promise((resolve, reject) => {
+      await mkdir(uploadsDir, { recursive: true });
+      await new Promise((resolvePromise, reject) => {
         server.once("error", reject);
         server.listen(port, host, () => {
           server.off("error", reject);
-          resolve(undefined);
+          resolvePromise(undefined);
         });
       });
       const address = server.address();
@@ -171,16 +286,17 @@ export function createClipboardServer({
         }
       }
       roomStreams.clear();
-      await new Promise((resolve, reject) => {
+      await new Promise((resolvePromise, reject) => {
         server.close((error) => {
           if (error) {
             reject(error);
             return;
           }
-          resolve(undefined);
+          resolvePromise(undefined);
         });
       });
       store.close();
+      await rm(uploadsDir, { recursive: true, force: true });
     }
   };
 }
