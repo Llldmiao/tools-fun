@@ -33,6 +33,54 @@ class MockEventSource {
   }
 }
 
+class MockXMLHttpRequest {
+  static queue: Array<{ status: number; body: unknown; progress?: Array<{ loaded: number; total: number }> }> = [];
+
+  method = "";
+  url = "";
+  status = 0;
+  responseType = "";
+  response: unknown = null;
+  responseText = "";
+  onload: (() => void) | null = null;
+  onerror: (() => void) | null = null;
+  uploadProgressListener: ((event: ProgressEvent<EventTarget>) => void) | null = null;
+  upload = {
+    addEventListener: (type: string, listener: (event: ProgressEvent<EventTarget>) => void) => {
+      if (type === "progress") {
+        this.uploadProgressListener = listener;
+      }
+    }
+  };
+
+  open(method: string, url: string) {
+    this.method = method;
+    this.url = url;
+  }
+
+  send() {
+    const next = MockXMLHttpRequest.queue.shift();
+    if (!next) {
+      throw new Error("Missing mocked XMLHttpRequest response");
+    }
+
+    setTimeout(() => {
+      for (const step of next.progress ?? []) {
+        this.uploadProgressListener?.({
+          lengthComputable: true,
+          loaded: step.loaded,
+          total: step.total
+        } as ProgressEvent<EventTarget>);
+      }
+
+      this.status = next.status;
+      this.response = next.body;
+      this.responseText = JSON.stringify(next.body);
+      this.onload?.();
+    }, 0);
+  }
+}
+
 describe("clipboard app", () => {
   const fetchMock = vi.fn();
   const writeTextMock = vi.fn();
@@ -46,6 +94,7 @@ describe("clipboard app", () => {
   beforeEach(() => {
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal("EventSource", MockEventSource as unknown as typeof EventSource);
+    vi.stubGlobal("XMLHttpRequest", MockXMLHttpRequest as unknown as typeof XMLHttpRequest);
     vi.stubGlobal("navigator", {
       clipboard: {
         writeText: writeTextMock.mockResolvedValue(undefined)
@@ -55,6 +104,7 @@ describe("clipboard app", () => {
     window.localStorage.clear();
     document.documentElement.lang = "";
     MockEventSource.instances = [];
+    MockXMLHttpRequest.queue = [];
     fetchMock.mockReset();
     writeTextMock.mockReset();
   });
@@ -180,6 +230,22 @@ describe("clipboard app", () => {
           }
         })
       });
+    MockXMLHttpRequest.queue.push({
+      status: 200,
+      progress: [
+        { loaded: 512, total: 1024 },
+        { loaded: 1024, total: 1024 }
+      ],
+      body: {
+        upload: {
+          type: "image",
+          fileName: "demo.png",
+          mimeType: "image/png",
+          size: 1234,
+          storageKey: "rooms/ROOM88/2026/04/06/uuid-demo.png"
+        }
+      }
+    });
 
     render(<App />);
 
@@ -194,9 +260,8 @@ describe("clipboard app", () => {
     expect(await screen.findByText("demo.png")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "上传到房间" }));
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
-    expect(String(fetchMock.mock.calls[1][0])).toContain("/api/rooms/ROOM88/uploads");
-    expect(String(fetchMock.mock.calls[2][0])).toContain("/api/rooms/ROOM88/items");
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(String(fetchMock.mock.calls[1][0])).toContain("/api/rooms/ROOM88/items");
   });
 
   it("merges incoming file items into the list", async () => {
@@ -311,6 +376,19 @@ describe("clipboard app", () => {
     expect(document.head.querySelector('meta[name="robots"]')?.getAttribute("content")).toBe("index,follow");
     expect(document.head.querySelector('meta[name="keywords"]')?.getAttribute("content")).toContain("跨设备剪贴板");
     expect(window.localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe("zh-CN");
+  });
+
+  it("shows that the current room is already active", async () => {
+    fetchMock.mockResolvedValueOnce(emptyHistoryResponse());
+
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText("房间码"), { target: { value: "ROOM88" } });
+    fireEvent.click(screen.getByRole("button", { name: "进入房间" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /已在当前房间/ })).toBeDisabled();
+    });
   });
 
   it("publishes JSON-LD for the landing page in both schema blocks", () => {

@@ -38,8 +38,11 @@ type Messages = {
   roomLabel: string;
   roomPlaceholder: string;
   joinRoom: string;
+  joinCurrentRoom: string;
+  switchRoom: string;
   createRoom: string;
   copyRoom: string;
+  roomEntered: string;
   roomHint: (days: number) => string;
   draftSectionLabel: string;
   draftSectionTitle: string;
@@ -53,6 +56,9 @@ type Messages = {
   submit: string;
   uploadSubmit: string;
   submitting: string;
+  uploadProgress: (percent: number) => string;
+  uploadProcessing: string;
+  uploadPreviewAlt: string;
   historySectionLabel: string;
   historySectionTitle: (count: number) => string;
   currentRoom: (room: string) => string;
@@ -126,8 +132,11 @@ export const messages: Record<Language, Messages> = {
     roomLabel: "房间码",
     roomPlaceholder: "例如 ROOM88",
     joinRoom: "进入房间",
+    joinCurrentRoom: "已在当前房间",
+    switchRoom: "切换到这个房间",
     createRoom: "生成新房间",
     copyRoom: "复制房间码",
+    roomEntered: "已进入",
     roomHint: (days) =>
       `房间码知道的人都能进入，因此更适合局域网协作、临时同步和个人设备之间传递内容。消息会保留${days} 天，过期后自动清理。`,
     draftSectionLabel: "发送内容",
@@ -142,6 +151,9 @@ export const messages: Record<Language, Messages> = {
     submit: "发送到房间",
     uploadSubmit: "上传到房间",
     submitting: "发送中...",
+    uploadProgress: (percent) => `正在上传 ${percent}%`,
+    uploadProcessing: "上传完成，正在写入房间记录...",
+    uploadPreviewAlt: "待上传图片预览",
     historySectionLabel: "同步记录",
     historySectionTitle: (count) => `最近 ${count} 条`,
     currentRoom: (room) => `房间 ${room}`,
@@ -226,8 +238,11 @@ export const messages: Record<Language, Messages> = {
     roomLabel: "Room code",
     roomPlaceholder: "For example ROOM88",
     joinRoom: "Join room",
+    joinCurrentRoom: "Currently in this room",
+    switchRoom: "Switch to this room",
     createRoom: "Create room",
     copyRoom: "Copy room code",
+    roomEntered: "Joined",
     roomHint: (days) =>
       `Anyone with the room code can enter, so this is best for LAN collaboration, temporary syncing, and moving content between your own devices. Messages are kept for ${days} days and then cleaned up automatically.`,
     draftSectionLabel: "Send Content",
@@ -242,6 +257,9 @@ export const messages: Record<Language, Messages> = {
     submit: "Send to room",
     uploadSubmit: "Upload to room",
     submitting: "Sending...",
+    uploadProgress: (percent) => `Uploading ${percent}%`,
+    uploadProcessing: "Upload finished, saving the item to the room...",
+    uploadPreviewAlt: "Selected image preview",
     historySectionLabel: "Recent Syncs",
     historySectionTitle: (count) => `Latest ${count}`,
     currentRoom: (room) => `Room ${room}`,

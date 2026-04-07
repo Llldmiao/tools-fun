@@ -151,6 +151,9 @@ export function App() {
   const [serverError, setServerError] = useState("");
   const [copiedItemId, setCopiedItemId] = useState("");
   const [submitState, setSubmitState] = useState<SubmitState>("idle");
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [isFinalizingUpload, setIsFinalizingUpload] = useState(false);
+  const [selectedImagePreviewUrl, setSelectedImagePreviewUrl] = useState("");
   const [connectionState, setConnectionState] = useState<ConnectionState>("idle");
   const eventSourceRef = useRef<EventSource | null>(null);
   const copyResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -174,6 +177,21 @@ export function App() {
     document.documentElement.lang = language;
     window.localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
   }, [language]);
+
+  useEffect(() => {
+    if (!selectedFile || !selectedFile.type.startsWith("image/") || typeof URL.createObjectURL !== "function") {
+      setSelectedImagePreviewUrl("");
+      return undefined;
+    }
+
+    const nextUrl = URL.createObjectURL(selectedFile);
+    setSelectedImagePreviewUrl(nextUrl);
+    return () => {
+      if (typeof URL.revokeObjectURL === "function") {
+        URL.revokeObjectURL(nextUrl);
+      }
+    };
+  }, [selectedFile]);
 
   useEffect(() => {
     function handleHashChange() {
@@ -319,6 +337,18 @@ export function App() {
   }, [activeRoom, t]);
 
   const connectionLabel = useMemo(() => t.status[connectionState], [connectionState, t]);
+  const normalizedRoomInput = useMemo(() => normalizeRoomId(roomInput), [roomInput]);
+  const isViewingCurrentRoom = activeRoom.length > 0 && normalizedRoomInput === activeRoom;
+  const joinButtonLabel = useMemo(() => {
+    if (isViewingCurrentRoom) return t.joinCurrentRoom;
+    if (activeRoom.length > 0) return t.switchRoom;
+    return t.joinRoom;
+  }, [activeRoom.length, isViewingCurrentRoom, t]);
+  const uploadStatusLabel = useMemo(() => {
+    if (isFinalizingUpload) return t.uploadProcessing;
+    if (uploadProgress != null) return t.uploadProgress(uploadProgress);
+    return "";
+  }, [isFinalizingUpload, t, uploadProgress]);
 
   const composeLabel = useMemo(() => {
     if (selectedFile) {
@@ -346,23 +376,47 @@ export function App() {
     setActiveRoom(normalized);
   }
 
-  async function uploadSelectedFile(roomId: string, file: File) {
+  function uploadSelectedFile(roomId: string, file: File) {
     const formData = new FormData();
     formData.append("file", file);
 
-    const uploadResponse = await fetch(`/api/rooms/${roomId}/uploads`, {
-      method: "POST",
-      body: formData
-    });
-    const uploadPayload = await uploadResponse.json();
-    if (!uploadResponse.ok) {
-      throw new Error(uploadPayload.error ?? t.errors.submitFailed);
-    }
+    return new Promise<Record<string, unknown>>((resolve, reject) => {
+      const request = new XMLHttpRequest();
+      request.open("POST", `/api/rooms/${roomId}/uploads`);
+      request.responseType = "json";
 
+      request.upload.addEventListener("progress", (event) => {
+        if (!event.lengthComputable) return;
+        setUploadProgress(Math.max(5, Math.min(100, Math.round((event.loaded / event.total) * 100))));
+      });
+
+      request.onerror = () => {
+        reject(new Error(t.errors.submitFailed));
+      };
+
+      request.onload = () => {
+        const payload =
+          request.response && typeof request.response === "object"
+            ? request.response
+            : JSON.parse(request.responseText || "{}");
+
+        if (request.status < 200 || request.status >= 300) {
+          reject(new Error((payload as { error?: string }).error ?? t.errors.submitFailed));
+          return;
+        }
+
+        resolve((payload as { upload: Record<string, unknown> }).upload);
+      };
+
+      request.send(formData);
+    });
+  }
+
+  async function createClipboardItem(roomId: string, payload: Record<string, unknown>) {
     const itemResponse = await fetch(`/api/rooms/${roomId}/items`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(uploadPayload.upload)
+      body: JSON.stringify(payload)
     });
     const itemPayload = await itemResponse.json();
     if (!itemResponse.ok) {
@@ -389,26 +443,24 @@ export function App() {
 
     try {
       if (selectedFile) {
-        await uploadSelectedFile(activeRoom, selectedFile);
+        setUploadProgress(0);
+        const uploadPayload = await uploadSelectedFile(activeRoom, selectedFile);
+        setUploadProgress(100);
+        setIsFinalizingUpload(true);
+        await createClipboardItem(activeRoom, uploadPayload);
         setSelectedFile(null);
         if (fileInputRef.current) {
           fileInputRef.current.value = "";
         }
       } else {
-        const response = await fetch(`/api/rooms/${activeRoom}/items`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ type: "text", content: draft })
-        });
-        const payload = await response.json();
-        if (!response.ok) {
-          throw new Error(payload.error ?? t.errors.submitFailed);
-        }
+        await createClipboardItem(activeRoom, { type: "text", content: draft });
         setDraft("");
       }
     } catch (requestError) {
       setServerError(requestError instanceof Error ? requestError.message : t.errors.submitFailed);
     } finally {
+      setUploadProgress(null);
+      setIsFinalizingUpload(false);
       setSubmitState("idle");
     }
   }
@@ -526,7 +578,14 @@ export function App() {
             />
 
             <div className="actions">
-              <button type="submit">{t.joinRoom}</button>
+              <button
+                type="submit"
+                className={`room-submit-button${isViewingCurrentRoom ? " is-active-room" : ""}`}
+                disabled={isViewingCurrentRoom}
+              >
+                <span>{joinButtonLabel}</span>
+                {isViewingCurrentRoom ? <span className="button-pill">{t.roomEntered}</span> : null}
+              </button>
               <button type="button" className="ghost-button" onClick={handleCreateRoom}>
                 {t.createRoom}
               </button>
@@ -580,9 +639,26 @@ export function App() {
 
             {selectedFile ? (
               <div className="selected-file-card">
+                {selectedImagePreviewUrl ? (
+                  <img className="selected-file-preview" src={selectedImagePreviewUrl} alt={t.uploadPreviewAlt} />
+                ) : null}
                 <strong>{selectedFile.name}</strong>
                 <span>{selectedFile.type || t.unknownType}</span>
                 <span>{formatFileSize(selectedFile.size, t.fileSizeBytes, t.fileSizeKilobytes, t.fileSizeMegabytes)}</span>
+                {uploadStatusLabel ? (
+                  <div className="upload-progress-card" aria-live="polite">
+                    <div className="upload-progress-copy">
+                      <span>{uploadStatusLabel}</span>
+                      {uploadProgress != null ? <strong>{uploadProgress}%</strong> : null}
+                    </div>
+                    <div className="upload-progress-track" aria-hidden="true">
+                      <span
+                        className={`upload-progress-fill${uploadProgress == null ? " is-indeterminate" : ""}`}
+                        style={uploadProgress != null ? { width: `${uploadProgress}%` } : undefined}
+                      />
+                    </div>
+                  </div>
+                ) : null}
               </div>
             ) : (
               <p className="hint compact-hint">{t.fileSupportHint}</p>
@@ -640,8 +716,9 @@ export function App() {
                       </span>
                     </div>
                   ) : item.downloadUrl ? (
-                    <a className="ghost-button download-button" href={item.downloadUrl}>
-                      {t.download}
+                    <a className="download-button" href={item.downloadUrl}>
+                      <span className="download-button__icon" aria-hidden="true">↓</span>
+                      <span>{t.download}</span>
                     </a>
                   ) : null}
                 </div>

@@ -13,6 +13,49 @@ import {
 export function createClipboardStore({ dbPath }) {
   mkdirSync(dirname(dbPath), { recursive: true });
   const db = new DatabaseSync(dbPath);
+
+  function rebuildLegacyTable() {
+    db.exec(`
+      CREATE TABLE clipboard_items_v2 (
+        id TEXT PRIMARY KEY,
+        room_id TEXT NOT NULL,
+        type TEXT NOT NULL DEFAULT 'text',
+        content TEXT,
+        file_name TEXT,
+        mime_type TEXT,
+        size INTEGER,
+        storage_key TEXT,
+        created_at TEXT NOT NULL
+      );
+
+      INSERT INTO clipboard_items_v2 (
+        id,
+        room_id,
+        type,
+        content,
+        file_name,
+        mime_type,
+        size,
+        storage_key,
+        created_at
+      )
+      SELECT
+        id,
+        room_id,
+        COALESCE(type, 'text') AS type,
+        content,
+        file_name,
+        mime_type,
+        size,
+        storage_key,
+        created_at
+      FROM clipboard_items;
+
+      DROP TABLE clipboard_items;
+      ALTER TABLE clipboard_items_v2 RENAME TO clipboard_items;
+    `);
+  }
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS clipboard_items (
       id TEXT PRIMARY KEY,
@@ -25,14 +68,11 @@ export function createClipboardStore({ dbPath }) {
       storage_key TEXT,
       created_at TEXT NOT NULL
     );
-    CREATE INDEX IF NOT EXISTS idx_clipboard_items_room_created
-      ON clipboard_items (room_id, created_at DESC);
-    CREATE INDEX IF NOT EXISTS idx_clipboard_items_storage_key
-      ON clipboard_items (storage_key);
   `);
 
   const columns = db.prepare("PRAGMA table_info(clipboard_items)").all();
   const columnNames = new Set(columns.map((column) => String(column.name)));
+  const contentColumn = columns.find((column) => String(column.name) === "content");
   if (!columnNames.has("type")) {
     db.exec("ALTER TABLE clipboard_items ADD COLUMN type TEXT NOT NULL DEFAULT 'text'");
   }
@@ -48,6 +88,16 @@ export function createClipboardStore({ dbPath }) {
   if (!columnNames.has("storage_key")) {
     db.exec("ALTER TABLE clipboard_items ADD COLUMN storage_key TEXT");
   }
+  if (contentColumn && Number(contentColumn.notnull) === 1) {
+    rebuildLegacyTable();
+  }
+
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_clipboard_items_room_created
+      ON clipboard_items (room_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_clipboard_items_storage_key
+      ON clipboard_items (storage_key);
+  `);
 
   const insertStmt = db.prepare(`
     INSERT INTO clipboard_items (
