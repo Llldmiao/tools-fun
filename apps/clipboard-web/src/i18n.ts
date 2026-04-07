@@ -15,6 +15,18 @@ type Messages = {
   languageLabel: string;
   pageTitle: string;
   pageDescription: string;
+  pageCanonicalPath: string;
+  pageKeywords: string;
+  socialTitle: string;
+  socialDescription: string;
+  siteName: string;
+  categoryLabel: string;
+  faqSectionLabel: string;
+  faqSectionTitle: string;
+  faqItems: Array<{ question: string; answer: string }>;
+  useCasesSectionLabel: string;
+  useCasesSectionTitle: string;
+  useCases: string[];
   roomTitle: (room: string) => string;
   roomDescription: string;
   kicker: string;
@@ -68,7 +80,41 @@ export const messages: Record<Language, Messages> = {
     languageLabel: "语言",
     pageTitle: "共享粘贴板 - 多设备实时同步文本工具",
     pageDescription:
-      "共享粘贴板是一个轻量的多设备文本同步工具，让你在浏览器里快速共享链接、代码片段和临时内容。",
+      "共享粘贴板是一个浏览器里的跨设备剪贴板和临时文件传输工具，支持实时同步文本、链接、代码片段与常见文件。",
+    pageCanonicalPath: "/",
+    pageKeywords: "共享粘贴板,跨设备剪贴板,浏览器剪贴板同步,临时文件传输,实时文本同步,在线粘贴板",
+    socialTitle: "共享粘贴板：跨设备实时同步文本和文件",
+    socialDescription:
+      "用浏览器就能在手机和电脑之间临时同步文本、链接、代码片段和文件，不需要登录，适合短期共享。",
+    siteName: "共享粘贴板",
+    categoryLabel: "效率工具",
+    faqSectionLabel: "常见问题",
+    faqSectionTitle: "这个工具适合怎么用？",
+    faqItems: [
+      {
+        question: "共享粘贴板能做什么？",
+        answer: "它适合在手机、电脑和平板之间临时传链接、代码片段、验证码截图、文档和压缩包。"
+      },
+      {
+        question: "需要注册或登录吗？",
+        answer: "不需要。知道房间码就能进入同一个临时共享房间。"
+      },
+      {
+        question: "消息会保存多久？",
+        answer: "内容只保留有限天数，适合临时同步和短期共享，不适合作为长期网盘。"
+      },
+      {
+        question: "支持哪些文件？",
+        answer: "支持常见图片格式以及 PDF、TXT、MD、JSON、CSV、ZIP 等文件类型。"
+      }
+    ],
+    useCasesSectionLabel: "使用场景",
+    useCasesSectionTitle: "什么时候会比发微信、传 AirDrop 更顺手？",
+    useCases: [
+      "把电脑上的链接、命令行片段或代码快速传到手机。",
+      "在公司电脑和个人设备之间临时同步小文件或截图。",
+      "给同事一个房间码，临时共享测试账号、日志片段或下载地址。"
+    ],
     roomTitle: (room) => `共享粘贴板 · 房间 ${room}`,
     roomDescription: "临时共享房间中的实时文本同步视图。",
     kicker: "跨设备文本与文件同步",
@@ -133,7 +179,42 @@ export const messages: Record<Language, Messages> = {
     languageLabel: "Language",
     pageTitle: "Shared Clipboard - Real-time text sync across devices",
     pageDescription:
-      "Shared Clipboard is a lightweight text sync tool for quickly sharing links, snippets, and temporary notes across browsers.",
+      "Shared Clipboard is a browser-based cross-device clipboard and temporary file transfer tool for syncing text, links, code snippets, and common files in real time.",
+    pageCanonicalPath: "/",
+    pageKeywords:
+      "shared clipboard,cross-device clipboard,browser clipboard sync,temporary file transfer,real-time text sync,online clipboard",
+    socialTitle: "Shared Clipboard: real-time text and file sync across devices",
+    socialDescription:
+      "Move text, links, snippets, screenshots, and files between phone and desktop in the browser without signing in.",
+    siteName: "Shared Clipboard",
+    categoryLabel: "Productivity",
+    faqSectionLabel: "FAQ",
+    faqSectionTitle: "What is this tool best for?",
+    faqItems: [
+      {
+        question: "What can Shared Clipboard help with?",
+        answer: "It works well for moving links, snippets, screenshots, documents, and temporary notes between your devices."
+      },
+      {
+        question: "Do I need an account?",
+        answer: "No. Anyone with the room code can open the same temporary room."
+      },
+      {
+        question: "How long is content stored?",
+        answer: "Items are kept for a limited number of days, so the tool is better for temporary syncing than long-term storage."
+      },
+      {
+        question: "What file types are supported?",
+        answer: "Common image formats are supported, along with files such as PDF, TXT, MD, JSON, CSV, and ZIP."
+      }
+    ],
+    useCasesSectionLabel: "Use Cases",
+    useCasesSectionTitle: "When is this easier than AirDrop, chat apps, or cloud drives?",
+    useCases: [
+      "Send a command, URL, or code snippet from your laptop to your phone in seconds.",
+      "Move a screenshot, PDF, or notes file between work and personal devices without setup.",
+      "Share a temporary room code with a teammate to pass logs, test data, or download links."
+    ],
     roomTitle: (room) => `Shared Clipboard · Room ${room}`,
     roomDescription: "Real-time text sync for a temporary shared room.",
     kicker: "Cross-device text and file sync",

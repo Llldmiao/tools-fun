@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-label="共享粘贴板分享图">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#f8f2e8" />
+      <stop offset="100%" stop-color="#dfeee3" />
+    </linearGradient>
+    <linearGradient id="panel" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#1f4632" />
+      <stop offset="100%" stop-color="#305e48" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)" />
+  <circle cx="1060" cy="120" r="150" fill="#f3c98d" opacity="0.55" />
+  <circle cx="170" cy="90" r="110" fill="#b7d0ba" opacity="0.7" />
+  <rect x="88" y="88" width="1024" height="454" rx="36" fill="rgba(255,252,247,0.88)" stroke="rgba(22,35,27,0.12)" />
+  <rect x="148" y="152" width="202" height="250" rx="28" fill="url(#panel)" />
+  <rect x="188" y="118" width="122" height="62" rx="20" fill="#f8f2e8" />
+  <rect x="204" y="230" width="90" height="18" rx="9" fill="#f8f2e8" opacity="0.95" />
+  <rect x="204" y="268" width="90" height="18" rx="9" fill="#f8f2e8" opacity="0.8" />
+  <rect x="204" y="306" width="64" height="18" rx="9" fill="#f8f2e8" opacity="0.62" />
+  <text x="408" y="212" fill="#4e6a58" font-family="'IBM Plex Mono', 'JetBrains Mono', monospace" font-size="30" letter-spacing="2">CROSS-DEVICE TEXT AND FILE SYNC</text>
+  <text x="408" y="302" fill="#16231b" font-family="'IBM Plex Serif', 'Noto Serif SC', serif" font-size="84" font-weight="700">共享粘贴板</text>
+  <text x="410" y="370" fill="#33463a" font-family="'IBM Plex Sans', 'Noto Sans SC', sans-serif" font-size="36">在浏览器里临时同步文本、链接、代码片段和常见文件</text>
+  <text x="410" y="422" fill="#33463a" font-family="'IBM Plex Sans', 'Noto Sans SC', sans-serif" font-size="36">不用登录，房间码即开即用</text>
+  <rect x="410" y="468" width="238" height="52" rx="26" fill="#1f4632" />
+  <text x="454" y="503" fill="#f8f2e8" font-family="'IBM Plex Mono', 'JetBrains Mono', monospace" font-size="24">lengmiaomiao.win</text>
+</svg>

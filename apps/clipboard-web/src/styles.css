@@ -18,6 +18,23 @@ body {
   min-width: 320px;
 }
 
+#seo-fallback {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 32px 20px;
+  color: #16231b;
+}
+
+#seo-fallback section + section {
+  margin-top: 24px;
+}
+
+#seo-fallback h1,
+#seo-fallback h2,
+.faq-item h3 {
+  font-family: "IBM Plex Serif", "Noto Serif SC", serif;
+}
+
 button,
 input,
 textarea {
@@ -107,6 +124,10 @@ button {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 24px;
+  margin-bottom: 24px;
+}
+
+.info-panel {
   margin-bottom: 24px;
 }
 
@@ -229,6 +250,45 @@ button:disabled {
 .hint {
   margin: 16px 0 0;
   color: #4e6a58;
+}
+
+.info-list,
+.faq-list {
+  margin: 0;
+  padding: 0;
+}
+
+.info-list {
+  list-style: none;
+  display: grid;
+  gap: 12px;
+}
+
+.info-list li,
+.faq-item {
+  border: 1px solid rgba(22, 35, 27, 0.1);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.62);
+  padding: 18px 20px;
+}
+
+.faq-list {
+  display: grid;
+  gap: 14px;
+}
+
+.faq-item h3,
+.faq-item p {
+  margin: 0;
+}
+
+.faq-item h3 {
+  font-size: 1.15rem;
+  margin-bottom: 8px;
+}
+
+.faq-item p {
+  color: #33463a;
 }
 
 .compact-hint {

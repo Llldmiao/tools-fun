@@ -17,6 +17,8 @@ import type { ConnectionState, ErrorKey, Language } from "./i18n";
 type SubmitState = "idle" | "submitting";
 
 const ACCEPTED_FILE_TYPES = [...ALLOWED_IMAGE_MIME_TYPES, ...ALLOWED_GENERIC_FILE_MIME_TYPES].join(",");
+const SITE_URL = "https://lengmiaomiao.win";
+const DEFAULT_SOCIAL_IMAGE = `${SITE_URL}/social-card.svg`;
 
 function setHeadMeta(name: string, content: string) {
   let meta = document.head.querySelector(`meta[name="${name}"]`);
@@ -26,6 +28,72 @@ function setHeadMeta(name: string, content: string) {
     document.head.append(meta);
   }
   meta.setAttribute("content", content);
+}
+
+function setHeadProperty(property: string, content: string) {
+  let meta = document.head.querySelector(`meta[property="${property}"]`);
+  if (!meta) {
+    meta = document.createElement("meta");
+    meta.setAttribute("property", property);
+    document.head.append(meta);
+  }
+  meta.setAttribute("content", content);
+}
+
+function setCanonicalLink(href: string) {
+  let link = document.head.querySelector('link[rel="canonical"]');
+  if (!link) {
+    link = document.createElement("link");
+    link.setAttribute("rel", "canonical");
+    document.head.append(link);
+  }
+  link.setAttribute("href", href);
+}
+
+function setAlternateLink(language: Language, href: string) {
+  let link = document.head.querySelector(`link[rel="alternate"][hreflang="${language}"]`);
+  if (!link) {
+    link = document.createElement("link");
+    link.setAttribute("rel", "alternate");
+    link.setAttribute("hreflang", language);
+    document.head.append(link);
+  }
+  link.setAttribute("href", href);
+}
+
+function setJsonLd(id: string, payload: object) {
+  let script = document.head.querySelector(`script[data-jsonld="${id}"]`);
+  if (!script) {
+    script = document.createElement("script");
+    script.setAttribute("type", "application/ld+json");
+    script.setAttribute("data-jsonld", id);
+    document.head.append(script);
+  }
+  script.textContent = JSON.stringify(payload);
+}
+
+function getRoomFromLocation() {
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  const hashRoom = normalizeRoomId(hash.get("room"));
+  if (isValidRoomId(hashRoom)) {
+    return hashRoom;
+  }
+
+  const query = new URLSearchParams(window.location.search);
+  const queryRoom = normalizeRoomId(query.get("room"));
+  if (isValidRoomId(queryRoom)) {
+    return queryRoom;
+  }
+
+  return "";
+}
+
+function replaceLocationForRoom(room: string) {
+  const query = new URLSearchParams(window.location.search);
+  query.delete("room");
+  const queryString = query.toString();
+  const suffix = queryString ? `?${queryString}` : "";
+  window.history.replaceState({}, "", `${window.location.pathname}${suffix}#room=${room}`);
 }
 
 function formatTime(value: string, language: Language) {
@@ -92,8 +160,7 @@ export function App() {
   const error = errorKey ? t.errors[errorKey] : serverError;
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const room = normalizeRoomId(params.get("room"));
+    const room = getRoomFromLocation();
     if (isValidRoomId(room)) {
       setRoomInput(room);
       setActiveRoom(room);
@@ -109,11 +176,26 @@ export function App() {
   }, [language]);
 
   useEffect(() => {
-    if (!activeRoom) return undefined;
+    function handleHashChange() {
+      const room = getRoomFromLocation();
+      if (room) {
+        setRoomInput(room);
+        setActiveRoom(room);
+        return;
+      }
 
-    const params = new URLSearchParams(window.location.search);
-    params.set("room", activeRoom);
-    window.history.replaceState({}, "", `?${params.toString()}`);
+      setActiveRoom("");
+    }
+
+    window.addEventListener("hashchange", handleHashChange);
+    return () => {
+      window.removeEventListener("hashchange", handleHashChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!activeRoom) return undefined;
+    replaceLocationForRoom(activeRoom);
 
     let disposed = false;
     setConnectionState("connecting");
@@ -176,10 +258,64 @@ export function App() {
 
   useEffect(() => {
     const roomMode = activeRoom.length > 0;
+    const pageUrl = `${SITE_URL}${t.pageCanonicalPath}`;
+    const socialTitle = roomMode ? t.roomTitle(activeRoom) : t.socialTitle;
+    const socialDescription = roomMode ? t.roomDescription : t.socialDescription;
+    const faqJsonLd = {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      inLanguage: t.locale,
+      mainEntity: t.faqItems.map((item) => ({
+        "@type": "Question",
+        name: item.question,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: item.answer
+        }
+      }))
+    };
+    const softwareJsonLd = {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      name: t.siteName,
+      applicationCategory: t.categoryLabel,
+      operatingSystem: "Web",
+      inLanguage: t.locale,
+      offers: {
+        "@type": "Offer",
+        price: "0",
+        priceCurrency: "USD"
+      },
+      description: t.pageDescription,
+      url: pageUrl,
+      featureList: [
+        t.kicker,
+        t.lead,
+        t.fileSupportHint,
+        t.heroHint(CLIPBOARD_RETENTION_DAYS)
+      ]
+    };
 
     document.title = roomMode ? t.roomTitle(activeRoom) : t.pageTitle;
     setHeadMeta("description", roomMode ? t.roomDescription : t.pageDescription);
+    setHeadMeta("keywords", t.pageKeywords);
     setHeadMeta("robots", roomMode ? "noindex,nofollow" : "index,follow");
+    setHeadMeta("twitter:card", "summary_large_image");
+    setHeadMeta("twitter:title", socialTitle);
+    setHeadMeta("twitter:description", socialDescription);
+    setHeadMeta("twitter:image", DEFAULT_SOCIAL_IMAGE);
+    setHeadProperty("og:type", "website");
+    setHeadProperty("og:site_name", t.siteName);
+    setHeadProperty("og:locale", t.locale);
+    setHeadProperty("og:title", socialTitle);
+    setHeadProperty("og:description", socialDescription);
+    setHeadProperty("og:url", pageUrl);
+    setHeadProperty("og:image", DEFAULT_SOCIAL_IMAGE);
+    setCanonicalLink(pageUrl);
+    setAlternateLink("zh-CN", pageUrl);
+    setAlternateLink("en-US", pageUrl);
+    setJsonLd("software-application", softwareJsonLd);
+    setJsonLd("faq-page", faqJsonLd);
   }, [activeRoom, t]);
 
   const connectionLabel = useMemo(() => t.status[connectionState], [connectionState, t]);
@@ -355,6 +491,20 @@ export function App() {
         <p className="hint">{t.heroHint(CLIPBOARD_RETENTION_DAYS)}</p>
       </section>
 
+      <section className="panel info-panel">
+        <div className="panel-header">
+          <div>
+            <p className="section-label">{t.useCasesSectionLabel}</p>
+            <h2>{t.useCasesSectionTitle}</h2>
+          </div>
+        </div>
+        <ul className="info-list">
+          {t.useCases.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      </section>
+
       <div className="grid">
         <section className="panel">
           <div className="panel-header">
@@ -522,6 +672,23 @@ export function App() {
             })}
           </ol>
         )}
+      </section>
+
+      <section className="panel info-panel">
+        <div className="panel-header">
+          <div>
+            <p className="section-label">{t.faqSectionLabel}</p>
+            <h2>{t.faqSectionTitle}</h2>
+          </div>
+        </div>
+        <div className="faq-list">
+          {t.faqItems.map((item) => (
+            <article key={item.question} className="faq-item">
+              <h3>{item.question}</h3>
+              <p>{item.answer}</p>
+            </article>
+          ))}
+        </div>
       </section>
     </div>
   );

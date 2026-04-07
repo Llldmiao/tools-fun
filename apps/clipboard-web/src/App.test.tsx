@@ -37,6 +37,12 @@ describe("clipboard app", () => {
   const fetchMock = vi.fn();
   const writeTextMock = vi.fn();
 
+  function readJsonLd(id: string) {
+    const script = document.head.querySelector(`script[data-jsonld="${id}"]`);
+    expect(script).not.toBeNull();
+    return JSON.parse(script?.textContent ?? "null");
+  }
+
   beforeEach(() => {
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal("EventSource", MockEventSource as unknown as typeof EventSource);
@@ -79,6 +85,7 @@ describe("clipboard app", () => {
 
     expect(await screen.findByText("该房间还没有内容。")).toBeInTheDocument();
     expect(document.head.querySelector('meta[name="robots"]')?.getAttribute("content")).toBe("noindex,nofollow");
+    expect(window.location.hash).toBe("#room=ROOM88");
   });
 
   it("switches to English, persists the selection, and updates landing metadata", async () => {
@@ -94,7 +101,11 @@ describe("clipboard app", () => {
       expect(document.title).toBe("Shared Clipboard - Real-time text sync across devices");
     });
     expect(document.head.querySelector('meta[name="description"]')?.getAttribute("content")).toBe(
-      "Shared Clipboard is a lightweight text sync tool for quickly sharing links, snippets, and temporary notes across browsers."
+      "Shared Clipboard is a browser-based cross-device clipboard and temporary file transfer tool for syncing text, links, code snippets, and common files in real time."
+    );
+    expect(document.head.querySelector('link[rel="canonical"]')?.getAttribute("href")).toBe("https://lengmiaomiao.win/");
+    expect(document.head.querySelector('meta[property="og:title"]')?.getAttribute("content")).toBe(
+      "Shared Clipboard: real-time text and file sync across devices"
     );
 
     unmount();
@@ -298,6 +309,86 @@ describe("clipboard app", () => {
 
     expect(document.title).toBe("共享粘贴板 - 多设备实时同步文本工具");
     expect(document.head.querySelector('meta[name="robots"]')?.getAttribute("content")).toBe("index,follow");
+    expect(document.head.querySelector('meta[name="keywords"]')?.getAttribute("content")).toContain("跨设备剪贴板");
     expect(window.localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe("zh-CN");
+  });
+
+  it("publishes JSON-LD for the landing page in both schema blocks", () => {
+    render(<App />);
+
+    const softwareJsonLd = readJsonLd("software-application");
+    expect(softwareJsonLd["@type"]).toBe("SoftwareApplication");
+    expect(softwareJsonLd.name).toBe("共享粘贴板");
+    expect(softwareJsonLd.url).toBe("https://lengmiaomiao.win/");
+    expect(softwareJsonLd.featureList).toEqual(
+      expect.arrayContaining([
+        "跨设备文本与文件同步",
+        "在 A 机器上传文本或文件，B 机器打开同一个房间就能实时看到。"
+      ])
+    );
+
+    const faqJsonLd = readJsonLd("faq-page");
+    expect(faqJsonLd["@type"]).toBe("FAQPage");
+    expect(faqJsonLd.inLanguage).toBe("zh-CN");
+    expect(faqJsonLd.mainEntity).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          "@type": "Question",
+          name: "共享粘贴板能做什么？"
+        })
+      ])
+    );
+  });
+
+  it("loads a room from the hash fragment on first render", async () => {
+    window.history.replaceState({}, "", "/#room=ROOM88");
+    fetchMock.mockResolvedValueOnce(emptyHistoryResponse());
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(String(fetchMock.mock.calls[0][0])).toContain("/api/rooms/ROOM88/items");
+    });
+
+    expect(screen.getByDisplayValue("ROOM88")).toBeInTheDocument();
+    expect(window.location.search).toBe("");
+  });
+
+  it("migrates an old room query into the hash fragment", async () => {
+    window.history.replaceState({}, "", "/?room=ROOM88");
+    fetchMock.mockResolvedValueOnce(emptyHistoryResponse());
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(window.location.hash).toBe("#room=ROOM88");
+    });
+
+    expect(window.location.search).toBe("");
+  });
+
+  it("reacts to hashchange by switching to another room", async () => {
+    fetchMock
+      .mockResolvedValueOnce(emptyHistoryResponse())
+      .mockResolvedValueOnce(emptyHistoryResponse());
+
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText("房间码"), { target: { value: "ROOM88" } });
+    fireEvent.click(screen.getByRole("button", { name: "进入房间" }));
+
+    await waitFor(() => {
+      expect(String(fetchMock.mock.calls[0][0])).toContain("/api/rooms/ROOM88/items");
+    });
+
+    window.history.replaceState({}, "", "/#room=ROOM99");
+    window.dispatchEvent(new HashChangeEvent("hashchange"));
+
+    await waitFor(() => {
+      expect(String(fetchMock.mock.calls[1][0])).toContain("/api/rooms/ROOM99/items");
+    });
+
+    expect(screen.getByDisplayValue("ROOM99")).toBeInTheDocument();
+    expect(document.head.querySelector('meta[name="robots"]')?.getAttribute("content")).toBe("noindex,nofollow");
   });
 });
